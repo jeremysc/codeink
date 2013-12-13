@@ -1,0 +1,13 @@
+Plan of attack:
+---------------
+* Focus on creating three vocabularies for built-in objects, like numbers, strings, and lists:
+  * A visual vocabulary for visualizing the object
+  * A direct manipulation vocabulary for describing changes to the object
+  * An animation vocabulary for playing back the changes, which will probably be a cleaned-up version the DM vocab.
+* Make it possible to save, export and share drawn examples and traced algorithms.
+* Evaluate
+
+And later!
+* Create a visual/DM/animation vocabulary for describing flow control and abstraction, so you can begin to generalize the algorithm
+* Enable simulation of that algorithm on (1) the rest of the current example, (2) other drawn examples.
+

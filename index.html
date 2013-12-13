@@ -1,0 +1,100 @@
+<!doctype html>
+<html>
+<meta charset="utf-8">
+<title>codeink</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="codeink enables you to work through programming problems visually.">
+
+<style>
+@import url(css/bootstrap.css);
+@import url(style.css);
+</style>
+
+<script src="js/jquery.js"></script>
+<script src="js/bootstrap.js"></script>
+<script src="js/kinetic.js"></script>
+<script src="js/underscore.js"></script>
+<script src="js/backbone.js"></script>
+<script src="models.js"></script>
+<script src="sketches.js"></script>
+<script src="views.js"></script>
+
+<div id="codeinkapp">
+  <nav class="navbar navbar-default" role="navigation">
+    <div class="navbar-header">
+      <a class="navbar-brand" href="#">codeink</a>
+    </div>
+  </nav>
+
+  <div id="main">
+    <div class="row">
+      <div id="left-pane" class="col-xs-3">
+        <div id="palette">
+        </div>
+        <div id="steps">
+        </div>
+      </div>
+      <div id="right-pane" class="col-xs-9">
+        <div id="stage"></div>
+      </div>
+    </div>    
+  </div>
+</div>
+
+<script type="text/template" id="palette-template">
+  <div id="data">
+    <h3>data</h3>
+    <button id="num" class="btn btn-lg btn-primary add-data" type="button" draggable="true">number</button>
+    <button id="list" class="btn btn-lg btn-primary add-data" type="button" draggable="true">list</button>
+  </div>    
+</script>
+
+<script type="text/template" id="steps-template">
+  <h3>steps</h3>
+  <button id="back" class="btn" type="button">back</button>
+  <button id="forward" class="btn" type="button">forward</button>
+  <ul id="steps-body" class="nav nav-stacked"></ul>
+</script>
+
+<script type="text/template" id="step-template">
+  <li>
+    <a href="#"><code><%= code %></code></a>
+  </li>
+</script>
+
+<script>
+function isPrimitiveType(obj) {
+  var typ = typeof obj;
+  return ((obj == null) || (typ != "object"));
+}
+function isDatum(obj) {
+  return obj.has('name');
+}
+function isArray(obj) {
+  return (obj instanceof Array);
+}
+
+$(function() {
+  var AppView = Backbone.View.extend({
+    el: $("#codeinkapp"),
+
+    initialize: function() {
+      this.render();
+    },
+
+    render: function() {
+      var self = this;
+      var activeStep = new ActiveStep;
+      var steps = new Steps;
+      var data = new Data;
+      var trace = new Trace;
+      new PaletteView();
+      new CanvasView({data: data, steps: steps, activeStep: activeStep, trace: trace});
+      new StepsView({data: data, steps: steps, activeStep: activeStep, trace: trace});
+    }
+  });
+
+  new AppView;
+});
+</script>
+</html>

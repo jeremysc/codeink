@@ -1,0 +1,19 @@
+#main {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+#stdout {
+  padding: 10px;
+  padding-top: 0px;
+  width: 830px;
+}
+code {
+  font-size: 14px;
+}
+code.active {
+  border: 1px solid rgb(221,17,68);
+}
+#steps-body li {
+  margin-top: 2px;
+  margin-bottom: 2px;
+}
