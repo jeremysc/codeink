@@ -357,8 +357,10 @@ var StepsView = Backbone.View.extend({
         id += 1;
         var traceStep = self.trace.at(id-1);
         var line = traceStep.get('line');
+        var step = self.steps.at(line-1);
         self.activeStep.set({step: self.steps.at(line-1), line: line, id: id});
-        self.updateDataFromTrace();
+        if (!step.animate(self.updateDataFromTrace))
+          self.updateDataFromTrace();
       }
     };
 

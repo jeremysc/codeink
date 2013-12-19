@@ -217,7 +217,7 @@ var ListSketch = DatumSketch.extend({
 
   initialize: function(options) {
     var self = this;
-    _.bindAll(this, 'render');
+    _.bindAll(this, 'render', 'animateAppend', 'animateInsert');
     this.layer = options.layer;
     this.globals = options.globals;
     this.dragData = options.dragData;
@@ -294,10 +294,8 @@ var ListSketch = DatumSketch.extend({
           if (this.dwelled) {
             self.model.pop(index);
             // modify the expression to be a pop
-            var expr = self.dragData.get('expr');
-            expr.set({
-              parts: ["list", ".pop(", "index", ")"]
-            });
+            var expr = new Pop({list: self.model, index: index});
+            self.dragData.set({'expr': expr});
             console.log("exit WITH dwell");
           } else {
             // duplicate sketch
@@ -362,6 +360,7 @@ var ListSketch = DatumSketch.extend({
     sketch.on("mousedown", _.debounce(startDrag, 150));
 
     this.group.add(sketch);
+    return sketch;
   },
 
   render: function(event) {
@@ -412,14 +411,16 @@ var ListSketch = DatumSketch.extend({
     // draw the list
     var values = this.model.get('values');
     var xpos = 0;
+    this.sketches = [];
     for (var i = 0; i < values.length; i++) {
       var sketch = this.renderListValue(xpos, 0, values[i], i);
+      this.sketches.push(sketch);
       xpos += box_dim+box_shift;
     }
-    var plus = this.drawBoxAndLabel(xpos, 0, box_dim, box_dim, "+", -1);
-    this.group.add(plus.label);
-    this.group.add(plus.box);
-    plus.box.on("click", function() {
+    this.plus = this.drawBoxAndLabel(xpos, 0, box_dim, box_dim, "+", -1);
+    this.group.add(this.plus.label);
+    this.group.add(this.plus.box);
+    this.plus.box.on("click", function() {
       var value = prompt('Enter new value');
       if (value != null) {
         var values = self.model.get('values');
@@ -427,7 +428,7 @@ var ListSketch = DatumSketch.extend({
         self.model.set({values: values});
         self.model.trigger('change');
         if (self.model.get('initialized')) {
-          var step = new Append({list: self.model, value: value});
+          var step = new Append({list: self.model, value: value, animation: self.animateAppend});
           self.model.trigger('step', {step: step});
         }
       }
@@ -512,7 +513,7 @@ var ListSketch = DatumSketch.extend({
         }
 
         // Start building the pending step
-        self.dragData.set({step: new Insert({list: self.model, index: dragIndex, value: self.dragData.get('expr')})});
+        self.dragData.set({step: new Insert({list: self.model, index: dragIndex, value: self.dragData.get('expr'), animation: self.animateInsert})});
 
         // modify the data
         var value = self.dragData.get('value');
@@ -574,5 +575,119 @@ var ListSketch = DatumSketch.extend({
     this.layer.add(this.group);
     this.layer.draw();
   },
+
+  // Animations
+  animateInsert: function(step, callback) {
+    var self = this;
+    var values = self.model.get('values');
+    var shift = box_dim+box_shift;
+
+    // check for pop
+    var value = step.get('value');
+    var pop, popping = false;
+    if (!isPrimitiveType(value) && !isDatum(value)) {
+      if (value.get("action") == "pop") {
+        pop = value;
+        popping = true;
+      }
+    }
+
+    if (popping) {
+      var insertIndex = step.get('index');
+      var popIndex = pop.get('index');
+      var popSketch = this.sketches[popIndex];
+      // 3 stages to pop and insert the value
+      var tween3 = new Kinetic.Tween({
+        node: popSketch, 
+        duration: 0.2,
+        y: 0,
+        onFinish: callback
+      });
+      var tween2 = new Kinetic.Tween({
+        node: popSketch, 
+        duration: 0.4,
+        x: shift*insertIndex,
+        onFinish: function() {tween3.play();} 
+      });
+      var tween1 = new Kinetic.Tween({
+        node: popSketch, 
+        duration: 0.2,
+        y: shift,
+        onFinish: function() {tween2.play();} 
+      });
+      // move the other values to the right
+      var tweens = [];
+      var shiftStart = (insertIndex < popIndex) ? insertIndex : popIndex;
+      var shiftEnd = (insertIndex < popIndex) ? popIndex : insertIndex;
+      var shiftDirection = (insertIndex < popIndex) ? 'right' : 'left';
+      for (var i = shiftStart; i <= shiftEnd; i++) {
+        if (i == popIndex) continue;
+        var sketch = self.sketches[i];
+        var xpos = sketch.getPosition().x;
+        var shiftBy = (shiftDirection == 'right') ? shift : -shift;
+        var tween = new Kinetic.Tween({
+          node: self.sketches[i], 
+          duration: 0.7,
+          x: xpos + shiftBy
+        });
+        tweens.push(tween);
+      }
+      for (var i = 0; i < tweens.length; i++) {
+        tweens[i].play();
+      }
+      tween1.play();
+    }
+  },
+
+  animateAppend: function(step, callback) {
+    var self = this;
+    var values = self.model.get('values');
+    var value = step.get('value');
+    var groupPosition = self.group.getPosition();
+    var position = {};
+    position.x = (box_dim+box_shift)*values.length;
+    position.y = -groupPosition.y;
+    var sketch = new Kinetic.Label(position);
+    sketch.add(new Kinetic.Tag({
+      strokeWidth: 3
+    }));
+    sketch.add(new Kinetic.Text({
+      text: value,
+      fontFamily: 'Helvetica',
+      fontSize: 35,
+      width: box_dim,
+      height: box_dim,
+      offsetY: -5,
+      align: 'center',
+      fill: 'black'
+    }));
+    this.group.add(sketch);
+    this.layer.draw();
+    // animate it
+    var tween = new Kinetic.Tween({
+      node: sketch, 
+      duration: 0.6,
+      y: 0,
+      onFinish: callback
+    });
+    // move the plus over as well
+    var x = this.plus.box.getPosition().x;
+    var plusTween = new Kinetic.Tween({
+      node: this.plus.box, 
+      duration: 0.6,
+      x: x + box_dim+box_shift
+    });
+    x = this.plus.label.getPosition().x;
+    var plusTween2 = new Kinetic.Tween({
+      node: this.plus.label, 
+      duration: 0.6,
+      x: x + box_dim+box_shift
+    });
+    tween.play();
+    plusTween.play();
+    plusTween2.play();
+
+
+  }
   
 });

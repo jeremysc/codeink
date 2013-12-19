@@ -153,6 +153,15 @@ var Step = Expr.extend({
         code += "  ";
     }
     return code + Expr.prototype.toCode.apply(this);
+  },
+  animate: function(callback) {
+    var animation = this.get('animation');
+    if (animation != undefined) {
+      animation(this, callback);
+      return true;
+    } else {
+      return false;
+    }
   }
 });
 
@@ -171,6 +180,16 @@ var Assignment = Step.extend({
     parts: ['variable', ' = ', 'value'],
     variable: null,
     value: null
+  }
+});
+
+var Pop = Step.extend({
+  defaults: {
+    action: 'pop',
+    indent: 0,
+    parts: ['list', '.pop(', 'index', ')'],
+    list: null,
+    index: null
   }
 });
 
