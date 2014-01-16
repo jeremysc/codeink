@@ -33,7 +33,8 @@ var DragData = Datum.extend({
       offset: null,
       step: null,
       src: null,
-      value: null
+      value: null,
+      fromSelect: false
     };
   }
 });

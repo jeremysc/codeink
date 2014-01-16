@@ -1,3 +1,53 @@
+function intersectRect(r1, r2) {
+  return !(r2.left > r1.right || 
+           r2.right < r1.left || 
+           r2.top > r1.bottom ||
+           r2.bottom < r1.top);
+}
+function getRectCorners(r) {
+  var l,r,t,b;
+  var position = r.getPosition();
+  var width = r.getWidth();
+  var height = r.getHeight();
+  if (width < 0) {
+    l = position.x + width;
+    r = position.x;
+  } else {
+    l = position.x;
+    r = position.x + width;
+  }
+  if (height < 0) {
+    t = position.y + height;
+    b = position.y;
+  } else {
+    t = position.y;
+    b = position.y + height;
+  }
+  return {left: l, right: r, top: t, bottom: b};
+}
+function getGroupRect(group) {
+  var groupPosition = group.getPosition();
+  var rects = group.getChildren().map(function(child) {
+    var position = child.getPosition();
+    var width = child.getWidth();
+    var height = child.getHeight();
+    return {left: groupPosition.x + position.x, right: groupPosition.x + position.x + width, top: groupPosition.y + position.y, bottom: groupPosition.y + position.y + height};
+  });
+  var groupRect = rects[0];
+  for (var i = 1; i < rects.length; i++) {
+    var rect = rects[i];
+    if (rect.left < groupRect.left)
+      groupRect.left = rect.left;
+    if (rect.right > groupRect.right)
+      groupRect.right = rect.right;
+    if (rect.top < groupRect.top)
+      groupRect.top = rect.top;
+    if (rect.bottom > groupRect.bottom)
+      groupRect.bottom = rect.bottom;
+  }
+  return groupRect;
+}
+
 var DatumSketch = Backbone.View.extend({
   drawBoxAndLabel: function(x, y, boxw, boxh, value, index) {
     var text_height = boxh-10;
@@ -31,10 +81,12 @@ var NumberSketch = DatumSketch.extend({
 
   initialize: function(options) {
     var self = this;
-    _.bindAll(this, 'render', 'renderValue');
+    _.bindAll(this, 'render', 'renderValue', 'selectIfIntersects');
     this.layer = options.layer;
     this.globals = options.globals;
     this.dragData = options.dragData;
+    this.sketch = null;
+    this.selected = false;
 
     var position = this.model.get('position');
     this.group = new Kinetic.Group({
@@ -55,6 +107,21 @@ var NumberSketch = DatumSketch.extend({
       self.model.set({position: this.getPosition()});
     });
     this.model.on('change', this.render);
+  },
+  
+  selectIfIntersects: function(rect) {
+    var selectRect = getRectCorners(rect);
+    var groupRect = getGroupRect(this.group);
+    var isSelected = intersectRect(selectRect, groupRect);
+    if (isSelected != this.selected) {
+      this.selected = isSelected;
+      if (this.selected) {
+        this.sketch.getTag().setStroke('red');
+      } else {
+        this.sketch.getTag().setStroke('black');
+      }
+      this.layer.draw();
+    }
   },
 
   render: function(event) {
@@ -102,7 +169,7 @@ var NumberSketch = DatumSketch.extend({
     });
     this.group.add(label);
 
-    var sketch = this.renderValue();
+    this.sketch = this.renderValue();
 
     this.layer.add(this.group);
     this.layer.draw();
@@ -113,7 +180,7 @@ var NumberSketch = DatumSketch.extend({
 
     // draw the number 
     var value = this.model.get('value');
-    var sketch = new Kinetic.Label({
+    sketch = new Kinetic.Label({
       x: 0,
       y: 0,
       //draggable: true
@@ -132,14 +199,18 @@ var NumberSketch = DatumSketch.extend({
       fill: 'black'
     }));
     sketch.on("mouseover", function() {
-      var tag = this.getTag();
-      tag.setStroke('red');
-      self.layer.draw();
+      if (!self.selected) {
+        var tag = this.getTag();
+        tag.setStroke('red');
+        self.layer.draw();
+      }
     });
     sketch.on("mouseout", function() {
-      var tag = this.getTag();
-      tag.setStroke('black');
-      self.layer.draw();
+      if (!self.selected) {
+        var tag = this.getTag();
+        tag.setStroke('black');
+        self.layer.draw();
+      }
     });
     sketch.on("dblclick", function() {
       self.editing = true;
@@ -209,6 +280,7 @@ var NumberSketch = DatumSketch.extend({
     sketch.on("mousedown", _.debounce(startDrag, 150));
 
     this.group.add(sketch);
+    return sketch;
   }
 });
 
@@ -217,10 +289,20 @@ var ListSketch = DatumSketch.extend({
 
   initialize: function(options) {
     var self = this;
-    _.bindAll(this, 'render', 'animateAppend', 'animateInsert');
+    _.bindAll(this, 'render', 'animateAppend', 'animateInsert', 'selectIfIntersects');
     this.layer = options.layer;
     this.globals = options.globals;
     this.dragData = options.dragData;
+    this.selectLeft = -1;
+    this.numSelected = 0;
+
+    if (this.model.get('initialized')) {
+      var step = new Assignment({
+        variable: this.model,
+        value: this.model.get('expr'),
+      });
+      this.model.trigger('step', {step: step});
+    }
 
     var position = this.model.get('position');
     this.group = new Kinetic.Group({
@@ -232,6 +314,31 @@ var ListSketch = DatumSketch.extend({
       self.model.set({position: this.getPosition()});
     });
     this.model.on('change', this.render);
+  },
+
+  selectIfIntersects: function(rect) {
+    var self = this;
+    var selectRect = getRectCorners(rect);
+    this.selectLeft = -1;
+    this.numSelected = 0;
+    var groupPos = this.group.getPosition();
+    for (var i = 0; i < self.sketches.length; i++) {
+      var sketch = this.sketches[i];
+      var sketchRect = getRectCorners(sketch);
+      sketchRect.left += groupPos.x;
+      sketchRect.right += groupPos.x;
+      sketchRect.top += groupPos.y;
+      sketchRect.bottom += groupPos.y;
+      if (intersectRect(selectRect, sketchRect)) {
+        sketch.getTag().setStroke('red');
+        if (self.selectLeft == -1)
+          self.selectLeft = i;
+        self.numSelected += 1;
+      } else {
+        sketch.getTag().setStroke('black');
+      }
+    }
+    this.layer.draw();
   },
 
   // draws a box and numeric value
@@ -259,6 +366,7 @@ var ListSketch = DatumSketch.extend({
       align: 'center',
       fill: 'black'
     }));
+    /*
     sketch.on("mouseover", function() {
       var tag = this.getTag();
       tag.setStroke('red');
@@ -269,6 +377,7 @@ var ListSketch = DatumSketch.extend({
       tag.setStroke('black');
       self.layer.draw();
     });
+    */
 
     /* dragging:
     user clicks
@@ -283,6 +392,28 @@ var ListSketch = DatumSketch.extend({
       - for re-entry, use relative loop index
     */
     sketch.on("mousemove", function(event) {
+      if (self.numSelected > 0) {
+        if (self.dragData.get('dragging') && !this.exited) {
+          // get position of sketch
+          var position = self.dragData.get('sketch').getPosition();
+          var listLeft = self.group.getPosition().y;
+          var listTop = self.group.getPosition().y;
+          var listBottom = self.group.getPosition().y + box_dim;
+          if (position.y > listBottom || position.y + box_dim < listTop) {
+            this.exited = true;
+            // duplicate sketch
+            var xpos = self.selectLeft*(box_dim+box_shift);
+            var values = self.model.get('values');
+            for (var i = self.selectLeft; i < self.selectLeft + self.numSelected; i++) {
+              self.sketches[i] = self.renderListValue(xpos, 0, values[i], i);
+              xpos += box_dim+box_shift;
+            }
+            self.selectLeft = -1;
+            self.numSelected = 0;
+          }
+        }
+        return;
+      }
       if (self.dragData.get('dragging') && !this.exited) {
         // get position of sketch
         var position = this.getPosition();
@@ -306,6 +437,43 @@ var ListSketch = DatumSketch.extend({
       }
     });
     var startDrag = function(event) {
+      // move selected elems to global scope
+      if (self.numSelected > 0) {
+        self.selected = [];
+        var groupPosition = self.group.getPosition();
+        var leftPosition = self.sketches[self.selectLeft].getPosition();
+        groupPosition.x += leftPosition.x;
+        groupPosition.y += leftPosition.y;
+        var selectedGroup = new Kinetic.Group();
+        // get grab offset
+        var offset = {x: event.offsetX - groupPosition.x,
+                      y: event.offsetY - groupPosition.y};
+        selectedGroup.setPosition(groupPosition);
+        self.layer.add(selectedGroup);
+        for (var i = self.selectLeft, j = 0; i < self.selectLeft + self.numSelected; i++, j++) {
+          var selectedSketch = self.sketches[i];
+          selectedSketch.setPosition({x: j*(box_dim+box_shift), y:0});
+          selectedSketch.moveTo(selectedGroup);
+        }
+        var left = self.selectLeft;
+        var right = self.selectLeft + self.numSelected;
+        self.dragData.set({
+          dragging: true,
+          expr: new ListVarExpr({
+            list: self.model,
+            index: left + ':' + right
+          }),
+          sketch: selectedGroup,
+          offset: offset,
+          fromSelect: true,
+          //src: self,
+          value: self.model.get('values').slice(left, right)
+        });
+        this.exited = false;
+        this.dwelled = true;
+        return;
+      }
+      
       // get position of sketch
       var position = this.getPosition();
       var groupPosition = self.group.getPosition();

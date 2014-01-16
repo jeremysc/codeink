@@ -169,6 +169,7 @@ var CanvasView = Backbone.View.extend({
     this.data = options.data;
     this.steps = options.steps;
     this.trace = options.trace;
+    this.sketches = [];
     this.activeStep = options.activeStep;
     _.bindAll(this, 'handleDrop', 'render');
 
@@ -221,6 +222,29 @@ var CanvasView = Backbone.View.extend({
     // Move the data using mousedown/move/up events,
     // instead of making KineticJS objects draggable
     this.dragData = new DragData({});
+    this.selectStart = {x: 0, y: 0};
+    this.selectRect;
+    this.selecting = false;
+
+    background.on("mousedown", function(event) {
+      if (!self.selecting) {
+        self.selectStart.x = event.offsetX;
+        self.selectStart.y = event.offsetY;
+        self.selecting = true;
+        self.selectRect = new Kinetic.Rect({
+          x: self.selectStart.x,
+          y: self.selectStart.y,
+          width: 1,
+          height: 1,
+          stroke: 'orange',
+          fill: 'blue',
+          opacity: 0.05,
+          strokeWidth: 1 
+        });
+        self.layer.add(self.selectRect);
+        self.layer.draw();
+      }
+    });
     this.layer.on("mousemove", function(event) {
       if (self.dragData.get('dragging')) {
         var offset = self.dragData.get('offset');
@@ -229,17 +253,57 @@ var CanvasView = Backbone.View.extend({
                         y: event.offsetY - offset.y};
         sketch.setPosition(position);
         self.layer.draw();
+      } else if (self.selecting) {
+        var current = {
+          x: event.offsetX,
+          y: event.offsetY
+        };
+        var width = current.x - self.selectStart.x;
+        var height = current.y - self.selectStart.y;
+        self.selectRect.setWidth(width);
+        self.selectRect.setHeight(height);
+        self.sketches.map(function(s) {
+          s.selectIfIntersects(self.selectRect);
+        });
+        self.layer.draw();
       }
     });
-    this.layer.on("mouseup", function() {
+    $(this.container).on("mouseup", function(event) {
       if (self.dragData.get('dragging')) {
-        var sketch = self.dragData.get('sketch');
-        sketch.destroy();
-        var step = self.dragData.get('step');
-        if (step != null) {
-          self.steps.trigger('step', {step:step});
+        if (self.dragData.get('fromSelect')) {
+          var sketch = self.dragData.get('sketch');
+          sketch.destroy();
+          var name;
+          for (var i = 1; i <= 40; i++) {
+            name = 'list'+i;
+            var datum = self.data.findWhere({name: name});
+            if (datum == null)
+              break;
+          }
+          var offset = self.dragData.get('offset');
+          var sketch = self.dragData.get('sketch');
+          var position = {x: event.offsetX - offset.x,
+                          y: event.offsetY - offset.y};
+          self.data.add(new List({
+            name: name,
+            initialized: true,
+            position: position,
+            values: self.dragData.get('value'),
+            expr: self.dragData.get('expr')
+          }));
+        } else {
+          var sketch = self.dragData.get('sketch');
+          sketch.destroy();
+          var step = self.dragData.get('step');
+          if (step != null) {
+            self.steps.trigger('step', {step:step});
+          }
         }
         self.dragData.set(self.dragData.defaults());
+        self.layer.draw();
+      } else if (self.selecting) {
+        self.selectRect.destroy();
+        self.selecting = false;
         self.layer.draw();
       }
     });
@@ -296,10 +360,12 @@ var CanvasView = Backbone.View.extend({
     switch(type) {
       case "list":
         var sketch = new ListSketch({model: datum, layer: self.layer, globals: self.globals, dragData: self.dragData});
+        self.sketches.push(sketch);
         sketch.render();
         break;
       case "num":
         var sketch = new NumberSketch({model: datum, layer: self.layer, globals: self.globals, dragData: self.dragData});
+        self.sketches.push(sketch);
         sketch.render();
         break;
       default:
