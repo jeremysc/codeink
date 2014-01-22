@@ -1,17 +1,37 @@
 var box_dim = 45;
 var box_shift = 3;
 var stageWidth = 850;
-var stageHeight = 425;
+var stageHeight = 550;
 
 var PaletteView = Backbone.View.extend({
   el: "#palette",
 
-  initialize: function() {
+  initialize: function(options) {
     var self = this;
     this.$el.html(_.template($("#palette-template").html()));
+    this.state = options.state;
 
     $(".add-data").on("dragstart", function(event) {
       event.originalEvent.dataTransfer.setData('text/plain', event.currentTarget.id);
+    });
+
+    $("#draw").on("click", function() {
+      self.state.mode = 'draw';
+      $("#tools button").removeClass('active');
+      $("#tools button").removeClass('btn-primary');
+      $("#tools button").addClass('btn-default');
+      $(this).removeClass('btn-default');
+      $(this).addClass('active');
+      $(this).toggleClass('btn-primary');
+    });
+    $("#select").on("click", function() {
+      self.state.mode = 'select';
+      $("#tools button").removeClass('active');
+      $("#tools button").removeClass('btn-primary');
+      $("#tools button").addClass('btn-default');
+      $(this).removeClass('btn-default');
+      $(this).addClass('active');
+      $(this).toggleClass('btn-primary');
     });
   },
   
@@ -171,6 +191,7 @@ var CanvasView = Backbone.View.extend({
     this.trace = options.trace;
     this.sketches = [];
     this.activeStep = options.activeStep;
+    this.state = options.state;
     _.bindAll(this, 'handleDrop', 'render');
 
     ///////////////////////////////////
@@ -225,9 +246,11 @@ var CanvasView = Backbone.View.extend({
     this.selectStart = {x: 0, y: 0};
     this.selectRect;
     this.selecting = false;
+    this.drawing = false;
+    this.strokes = [];
 
     background.on("mousedown", function(event) {
-      if (!self.selecting) {
+      if (!self.selecting && self.state.selecting()) {
         self.selectStart.x = event.offsetX;
         self.selectStart.y = event.offsetY;
         self.selecting = true;
@@ -242,7 +265,17 @@ var CanvasView = Backbone.View.extend({
           strokeWidth: 1 
         });
         self.layer.add(self.selectRect);
-        self.layer.draw();
+      } else if (self.state.drawing()) {
+        self.drawing = true;
+        self.stroke = new Kinetic.Line({
+          points: [event.offsetX, event.offsetY],
+          stroke: 'grey',
+          strokeWidth: 3,
+          lineJoin: 'round',
+          lineCap: 'round',
+          tension:  20
+        });
+        self.layer.add(self.stroke);
       }
     });
     this.layer.on("mousemove", function(event) {
@@ -265,6 +298,9 @@ var CanvasView = Backbone.View.extend({
         self.sketches.map(function(s) {
           s.selectIfIntersects(self.selectRect);
         });
+        self.layer.draw();
+      } else if (self.drawing) {
+        self.stroke.addPoint(event.offsetX, event.offsetY);
         self.layer.draw();
       }
     });
@@ -304,6 +340,14 @@ var CanvasView = Backbone.View.extend({
       } else if (self.selecting) {
         self.selectRect.destroy();
         self.selecting = false;
+        self.layer.draw();
+      } else if (self.drawing) {
+        if (self.stroke.getPoints().length < 0) {
+          self.stroke.destroy();
+        } else {
+          self.strokes.push(self.stroke);
+        }
+        self.drawing = false;
         self.layer.draw();
       }
     });
@@ -554,8 +598,6 @@ var StepsView = Backbone.View.extend({
         var value = globals[name];
         // numbers and lists of numbers only for now
         if (isPrimitiveType(value) && datum.get('type') == 'num') {
-          datum.set({value: value});
-        } else if (isPrimitiveType(value) && datum.get('type') == 'loop') {
           datum.set({value: value});
         } else if (isPrimitiveType(value) && datum.get('type') == 'bool') {
           var boolVal = value ? "True" : "False";

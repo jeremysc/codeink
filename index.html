@@ -42,8 +42,15 @@
 </div>
 
 <script type="text/template" id="palette-template">
+  <div>
+    <h3>tools</h3>
+    <div id="tools" class="btn-group">
+      <button id="select" type="button" class="btn btn-md btn-primary">Select</button>
+      <button id="draw" type="button" class="btn btn-md btn-default">Draw</button>
+    </div>
+  </div>    
   <div id="data">
-    <h3>data</h3>
+    <h3>data <small>drag onto canvas</small></h3>
     <button id="num" class="btn btn-lg btn-primary add-data" type="button" draggable="true">number</button>
     <button id="list" class="btn btn-lg btn-primary add-data" type="button" draggable="true">list</button>
   </div>    
@@ -84,12 +91,13 @@ $(function() {
 
     render: function() {
       var self = this;
+      var state = new State;
       var activeStep = new ActiveStep;
       var steps = new Steps;
       var data = new Data;
       var trace = new Trace;
-      new PaletteView();
-      new CanvasView({data: data, steps: steps, activeStep: activeStep, trace: trace});
+      new PaletteView({state: state});
+      new CanvasView({data: data, steps: steps, activeStep: activeStep, trace: trace, state: state});
       new StepsView({data: data, steps: steps, activeStep: activeStep, trace: trace});
     }
   });

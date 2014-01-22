@@ -366,76 +366,29 @@ var ListSketch = DatumSketch.extend({
       align: 'center',
       fill: 'black'
     }));
-    /*
     sketch.on("mouseover", function() {
-      var tag = this.getTag();
-      tag.setStroke('red');
-      self.layer.draw();
+      if (self.numSelected == 0) {
+        var tag = this.getTag();
+        tag.setStroke('red');
+        self.layer.draw();
+      }
     });
     sketch.on("mouseout", function() {
-      var tag = this.getTag();
-      tag.setStroke('black');
-      self.layer.draw();
+      if (self.numSelected == 0) {
+        var tag = this.getTag();
+        tag.setStroke('black');
+        self.layer.draw();
+      }
     });
-    */
 
     /* dragging:
-    user clicks
-    - deal with double click = debouncing
-
     when the user clicks:
       - set the value as dragData (global, draggable)
       - if exit occurs quickly
         - make a copy
       - if user dwells before exit, mark as a pop
-        - on exit, pop from the list (list redraws and closes gap) 
-      - for re-entry, use relative loop index
+        - on exit, pop from the list datum (list redraws and closes gap) 
     */
-    sketch.on("mousemove", function(event) {
-      if (self.numSelected > 0) {
-        if (self.dragData.get('dragging') && !this.exited) {
-          // get position of sketch
-          var position = self.dragData.get('sketch').getPosition();
-          var listLeft = self.group.getPosition().y;
-          var listTop = self.group.getPosition().y;
-          var listBottom = self.group.getPosition().y + box_dim;
-          if (position.y > listBottom || position.y + box_dim < listTop) {
-            this.exited = true;
-            // duplicate sketch
-            var xpos = self.selectLeft*(box_dim+box_shift);
-            var values = self.model.get('values');
-            for (var i = self.selectLeft; i < self.selectLeft + self.numSelected; i++) {
-              self.sketches[i] = self.renderListValue(xpos, 0, values[i], i);
-              xpos += box_dim+box_shift;
-            }
-            self.selectLeft = -1;
-            self.numSelected = 0;
-          }
-        }
-        return;
-      }
-      if (self.dragData.get('dragging') && !this.exited) {
-        // get position of sketch
-        var position = this.getPosition();
-        var listTop = self.group.getPosition().y;
-        var listBottom = self.group.getPosition().y + box_dim;
-        if (position.y > listBottom || position.y + box_dim < listTop) {
-          clearTimeout();
-          this.exited = true;
-          if (this.dwelled) {
-            self.model.pop(index);
-            // modify the expression to be a pop
-            var expr = new Pop({list: self.model, index: index});
-            self.dragData.set({'expr': expr});
-            console.log("exit WITH dwell");
-          } else {
-            // duplicate sketch
-            self.renderListValue(x,y,value,index);
-            console.log("exit WITHOUT dwell");
-          }
-        }
-      }
-    });
     var startDrag = function(event) {
       // move selected elems to global scope
       if (self.numSelected > 0) {
@@ -488,27 +441,7 @@ var ListSketch = DatumSketch.extend({
       //self.globals.moveToBottom();
       this.setPosition(position);
 
-      // handle drags inside loop
-      var loop = self.model.get('loop');
       var dragIndex = index;
-      if (loop != null) {
-        var loopIndex = loop.getValue();
-        if (loopIndex < index) {
-          dragIndex = new Expr({
-            value: loop,
-            offset: index - loopIndex,
-            parts: ['value', ' + ', 'offset']
-          });
-        } else if (loopIndex > index) {
-          dragIndex = new Expr({
-            value: loop,
-            offset: loopIndex - index,
-            parts: ['value', ' - ', 'offset']
-          });
-        } else {
-          dragIndex = loop;
-        }
-      }
       self.dragData.set({
         dragging: true,
         expr: new ListVarExpr({
@@ -527,6 +460,51 @@ var ListSketch = DatumSketch.extend({
 
     sketch.on("mousedown", _.debounce(startDrag, 150));
 
+    sketch.on("mousemove", function(event) {
+      if (self.numSelected > 0) {
+        if (self.dragData.get('dragging') && !this.exited) {
+          // get position of sketch
+          var position = self.dragData.get('sketch').getPosition();
+          var listLeft = self.group.getPosition().y;
+          var listTop = self.group.getPosition().y;
+          var listBottom = self.group.getPosition().y + box_dim;
+          if (position.y > listBottom || position.y + box_dim < listTop) {
+            this.exited = true;
+            // duplicate sketch
+            var xpos = self.selectLeft*(box_dim+box_shift);
+            var values = self.model.get('values');
+            for (var i = self.selectLeft; i < self.selectLeft + self.numSelected; i++) {
+              self.sketches[i] = self.renderListValue(xpos, 0, values[i], i);
+              xpos += box_dim+box_shift;
+            }
+            self.selectLeft = -1;
+            self.numSelected = 0;
+          }
+        }
+        return;
+      }
+      if (self.dragData.get('dragging') && !this.exited) {
+        // get position of sketch
+        var position = this.getPosition();
+        var listTop = self.group.getPosition().y;
+        var listBottom = self.group.getPosition().y + box_dim;
+        if (position.y > listBottom || position.y + box_dim < listTop) {
+          clearTimeout();
+          this.exited = true;
+          if (this.dwelled) {
+            self.model.pop(index);
+            // modify the expression to be a pop
+            var expr = new Pop({list: self.model, index: index});
+            self.dragData.set({'expr': expr});
+            console.log("exit WITH dwell");
+          } else {
+            // duplicate sketch
+            self.renderListValue(x,y,value,index);
+            console.log("exit WITHOUT dwell");
+          }
+        }
+      }
+    });
     this.group.add(sketch);
     return sketch;
   },
@@ -658,30 +636,16 @@ var ListSketch = DatumSketch.extend({
         var values = self.model.get('values');
         var index = Math.min(Math.round(position.x / box_dim), values.length);
 
-        // handle drags inside loop
-        var loop = self.model.get('loop');
         var dragIndex = index;
-        if (loop != null) {
-          var loopIndex = loop.getValue();
-          if (loopIndex < index) {
-            dragIndex = new Expr({
-              value: loop,
-              offset: index - loopIndex,
-              parts: ['value', ' + ', 'offset']
-            });
-          } else if (loopIndex > index) {
-            dragIndex = new Expr({
-              value: loop,
-              offset: loopIndex - index,
-              parts: ['value', ' - ', 'offset']
-            });
-          } else {
-            dragIndex = loop;
-          }
-        }
-
         // Start building the pending step
-        self.dragData.set({step: new Insert({list: self.model, index: dragIndex, value: self.dragData.get('expr'), animation: self.animateInsert})});
+        self.dragData.set({
+          step: new Insert({
+            list: self.model,
+            index: dragIndex,
+            value: self.dragData.get('expr'),
+            animation: self.animateInsert
+          })
+        });
 
         // modify the data
         var value = self.dragData.get('value');
@@ -709,27 +673,7 @@ var ListSketch = DatumSketch.extend({
         var values = self.model.get('values');
         var index = Math.min(Math.floor(position.x / box_dim), values.length-1);
         if (index != this.old_index) {
-          // handle drags inside loop
-          var loop = self.model.get('loop');
           var dragIndex = index;
-          if (loop != null) {
-            var loopIndex = loop.getValue();
-            if (loopIndex < index) {
-              dragIndex = new Expr({
-                value: loop,
-                offset: index - loopIndex,
-                parts: ['value', ' + ', 'offset']
-              });
-            } else if (loopIndex > index) {
-              dragIndex = new Expr({
-                value: loop,
-                offset: loopIndex - index,
-                parts: ['value', ' - ', 'offset']
-              });
-            } else {
-              dragIndex = loop;
-            }
-          }
           var value = self.dragData.get('value');
           self.model.pop(this.old_index);
           self.model.insert(index, value);

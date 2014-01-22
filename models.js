@@ -1,3 +1,18 @@
+// App state
+var State = Backbone.Model.extend({
+  initialize: function() {
+    _.bindAll(this, 'selecting', 'drawing');
+    this.mode = 'select';
+  },
+
+  selecting: function() {
+    return this.mode == 'select';
+  },
+  drawing: function() {
+    return this.mode == 'draw';
+  },
+});
+
 // ---------------
 // TRACE 
 // ---------------
@@ -62,8 +77,7 @@ var List = Datum.extend({
       visible: true,
       name: "list0",
       type: "list",
-      values: [1],
-      loop: null
+      values: [1]
     };
   },
 
