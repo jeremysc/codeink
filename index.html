@@ -45,8 +45,8 @@
   <div>
     <h3>tools</h3>
     <div id="tools" class="btn-group">
-      <button id="select" type="button" class="btn btn-md btn-primary">Select</button>
-      <button id="draw" type="button" class="btn btn-md btn-default">Draw</button>
+      <button id="select" type="button" class="btn btn-md btn-primary">select</button>
+      <button id="draw" type="button" class="btn btn-md btn-default">draw</button>
     </div>
   </div>    
   <div id="data">
@@ -57,7 +57,12 @@
 </script>
 
 <script type="text/template" id="steps-template">
-  <h3>steps</h3>
+  <h3>steps
+    <select id="language-select" class="small form-control-inline">
+      <option value='python'>python</option>
+      <option value='english'>english</option>
+    </select>
+  </h3>
   <button id="back" class="btn" type="button">back</button>
   <button id="forward" class="btn" type="button">forward</button>
   <ul id="steps-body" class="nav nav-stacked"></ul>

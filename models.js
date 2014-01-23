@@ -119,9 +119,11 @@ var Expr = Backbone.Model.extend({
   dragReset: function(partName) {
     this.set(partName, this.oldValue);
   },
-  toCode: function() {
+  toCode: function(lang) {
+    if (lang == undefined)
+      lang = 'python';
     var code = "";
-    var parts = this.get('parts');
+    var parts = this.get('parts')[lang];
     for (var i = 0; i < parts.length; i++) {
       // dynamic part
       if (this.has(parts[i])) {
@@ -133,7 +135,7 @@ var Expr = Backbone.Model.extend({
         } else if (isDatum(part)) {
           code += part.getSymbol();
         } else {
-          code += part.toCode();
+          code += part.toCode(lang);
         }
       // literal part
       } else {
@@ -148,7 +150,10 @@ var ListVarExpr = Expr.extend({
     return {
       list: "list",
       index: "0",
-      parts: ['list','[','index',']']
+      parts: {
+        'python': ['list','[','index',']'],
+        'english': ['list','[','index',']']
+      }
     };
   },
 });
@@ -159,7 +164,7 @@ var ListVarExpr = Expr.extend({
 // steps are gathered in a collection
 // ---------------
 var Step = Expr.extend({
-  toCode: function(toHTML) {
+  toCode: function(toHTML, lang) {
     var code = "";
     for (var ind = 0; ind < this.get('indent'); ind++) {
       if (toHTML)
@@ -167,7 +172,7 @@ var Step = Expr.extend({
       else
         code += "  ";
     }
-    return code + Expr.prototype.toCode.apply(this);
+    return code + Expr.prototype.toCode.call(this, lang);
   },
   animate: function(callback) {
     var animation = this.get('animation');
@@ -192,7 +197,10 @@ var Assignment = Step.extend({
   defaults: {
     action: 'assignment',
     indent: 0,
-    parts: ['variable', ' = ', 'value'],
+    parts: {
+      'python': ['variable', ' = ', 'value'],
+      'english': ['set ', 'variable', ' to ', 'value']
+    },
     variable: null,
     value: null
   }
@@ -202,7 +210,10 @@ var Pop = Step.extend({
   defaults: {
     action: 'pop',
     indent: 0,
-    parts: ['list', '.pop(', 'index', ')'],
+    parts: {
+      'python': ['list', '.pop(', 'index', ')'],
+      'english': ['pop out ', 'index', ' from ', 'list'],
+    },
     list: null,
     index: null
   }
@@ -212,7 +223,10 @@ var Insert = Step.extend({
   defaults: {
     action: 'insert',
     indent: 0,
-    parts: ['list', '.insert(', 'index', ',', 'value', ')'],
+    parts: {
+      'python': ['list', '.insert(', 'index', ',', 'value', ')'],
+      'english': ['insert ', 'value', ' into ', 'list', ' at position ', 'index']
+    },
     list: null,
     index: null,
     value: null
@@ -223,9 +237,27 @@ var Append = Step.extend({
   defaults: {
     action: 'append',
     indent: 0,
-    parts: ['list', '.append(', 'value', ')'],
+    parts: {
+      'python': ['list', '.append(', 'value', ')'],
+      'english': ['add ', 'value', ' to ', 'list']
+    },
     list: null,
     value: null
   }
 });
+
+var Rearrange = Step.extend({
+  defaults: {
+    action: 'rearrange',
+    indent: 0,
+    parts: {
+      'python': ['list', '.insert(', 'toIndex', ',', 'list', '.pop(', 'fromIndex', '))'],
+      'english': ['move ', 'list', ' position ', 'fromIndex', ' to ', 'toIndex']
+    },
+    list: null,
+    fromIndex: null,
+    toIndex: null
+  }
+});
+
 

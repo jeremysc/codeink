@@ -289,7 +289,7 @@ var ListSketch = DatumSketch.extend({
 
   initialize: function(options) {
     var self = this;
-    _.bindAll(this, 'render', 'animateAppend', 'animateInsert', 'selectIfIntersects');
+    _.bindAll(this, 'render', 'animateAppend', 'animateRearrange', 'selectIfIntersects');
     this.layer = options.layer;
     this.globals = options.globals;
     this.dragData = options.dragData;
@@ -638,14 +638,27 @@ var ListSketch = DatumSketch.extend({
 
         var dragIndex = index;
         // Start building the pending step
-        self.dragData.set({
-          step: new Insert({
-            list: self.model,
-            index: dragIndex,
-            value: self.dragData.get('expr'),
-            animation: self.animateInsert
-          })
-        });
+        var dragExpr = self.dragData.get('expr');
+        if (dragExpr != null && dragExpr.get('action') == 'pop') {
+          var fromIndex = dragExpr.get('index');
+          self.dragData.set({
+            step: new Rearrange({
+              list: self.model,
+              fromIndex: fromIndex,
+              toIndex: dragIndex,
+              animation: self.animateRearrange
+            })
+          });
+        } else {
+          self.dragData.set({
+            step: new Insert({
+              list: self.model,
+              index: dragIndex,
+              value: self.dragData.get('expr'),
+              //animation: self.animateInsert
+            })
+          });
+        }
 
         // modify the data
         var value = self.dragData.get('value');
@@ -689,66 +702,54 @@ var ListSketch = DatumSketch.extend({
   },
 
   // Animations
-  animateInsert: function(step, callback) {
+  animateRearrange: function(step, callback) {
     var self = this;
     var values = self.model.get('values');
     var shift = box_dim+box_shift;
 
-    // check for pop
-    var value = step.get('value');
-    var pop, popping = false;
-    if (!isPrimitiveType(value) && !isDatum(value)) {
-      if (value.get("action") == "pop") {
-        pop = value;
-        popping = true;
-      }
+    var insertIndex = step.get('toIndex');
+    var popIndex = step.get('fromIndex');
+    var popSketch = this.sketches[popIndex];
+    // 3 stages to pop and insert the value
+    var tween3 = new Kinetic.Tween({
+      node: popSketch, 
+      duration: 0.2,
+      y: 0,
+      onFinish: callback
+    });
+    var tween2 = new Kinetic.Tween({
+      node: popSketch, 
+      duration: 0.4,
+      x: shift*insertIndex,
+      onFinish: function() {tween3.play();} 
+    });
+    var tween1 = new Kinetic.Tween({
+      node: popSketch, 
+      duration: 0.2,
+      y: shift,
+      onFinish: function() {tween2.play();} 
+    });
+    // move the other values to the right
+    var tweens = [];
+    var shiftStart = (insertIndex < popIndex) ? insertIndex : popIndex;
+    var shiftEnd = (insertIndex < popIndex) ? popIndex : insertIndex;
+    var shiftDirection = (insertIndex < popIndex) ? 'right' : 'left';
+    for (var i = shiftStart; i <= shiftEnd; i++) {
+      if (i == popIndex) continue;
+      var sketch = self.sketches[i];
+      var xpos = sketch.getPosition().x;
+      var shiftBy = (shiftDirection == 'right') ? shift : -shift;
+      var tween = new Kinetic.Tween({
+        node: self.sketches[i], 
+        duration: 0.7,
+        x: xpos + shiftBy
+      });
+      tweens.push(tween);
     }
-
-    if (popping) {
-      var insertIndex = step.get('index');
-      var popIndex = pop.get('index');
-      var popSketch = this.sketches[popIndex];
-      // 3 stages to pop and insert the value
-      var tween3 = new Kinetic.Tween({
-        node: popSketch, 
-        duration: 0.2,
-        y: 0,
-        onFinish: callback
-      });
-      var tween2 = new Kinetic.Tween({
-        node: popSketch, 
-        duration: 0.4,
-        x: shift*insertIndex,
-        onFinish: function() {tween3.play();} 
-      });
-      var tween1 = new Kinetic.Tween({
-        node: popSketch, 
-        duration: 0.2,
-        y: shift,
-        onFinish: function() {tween2.play();} 
-      });
-      // move the other values to the right
-      var tweens = [];
-      var shiftStart = (insertIndex < popIndex) ? insertIndex : popIndex;
-      var shiftEnd = (insertIndex < popIndex) ? popIndex : insertIndex;
-      var shiftDirection = (insertIndex < popIndex) ? 'right' : 'left';
-      for (var i = shiftStart; i <= shiftEnd; i++) {
-        if (i == popIndex) continue;
-        var sketch = self.sketches[i];
-        var xpos = sketch.getPosition().x;
-        var shiftBy = (shiftDirection == 'right') ? shift : -shift;
-        var tween = new Kinetic.Tween({
-          node: self.sketches[i], 
-          duration: 0.7,
-          x: xpos + shiftBy
-        });
-        tweens.push(tween);
-      }
-      for (var i = 0; i < tweens.length; i++) {
-        tweens[i].play();
-      }
-      tween1.play();
+    for (var i = 0; i < tweens.length; i++) {
+      tweens[i].play();
     }
+    tween1.play();
   },
 
   animateAppend: function(step, callback) {

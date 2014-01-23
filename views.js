@@ -428,6 +428,7 @@ var StepsView = Backbone.View.extend({
     this.steps = options.steps;
     this.activeStep = options.activeStep;
     this.trace = options.trace;
+    this.language = 'python';
 
     this.indent = 0;
     
@@ -489,6 +490,12 @@ var StepsView = Backbone.View.extend({
           stepForward();
           return;
       }
+    });
+
+    // language
+    $("#language-select").change(function(event) {
+      self.language = this.value;
+      self.render();
     });
 
   },
@@ -625,7 +632,7 @@ var StepsView = Backbone.View.extend({
     this.steps.each(function(step, line) {
       line += 1;
       var view = new StepListView({model: step});
-      var el = view.render().el;
+      var el = view.render(self.language).el;
       this.$("#steps-body").append(el);
       if (line == activeLine)
         $(el).find("code").addClass('active');
@@ -646,8 +653,8 @@ var StepListView = Backbone.View.extend({
     _.bindAll(this, 'render');
   },
 
-  render: function() {
-    var code = this.model.toCode(true);
+  render: function(lang) {
+    var code = this.model.toCode(true, lang);
     var template = _.template($('#step-template').html());
     $(this.el).html(template({code: code}));
     return this;
