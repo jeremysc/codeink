@@ -7,6 +7,7 @@
 
 <style>
 @import url(css/bootstrap.css);
+@import url(css/colorpicker.css);
 @import url(style.css);
 </style>
 
@@ -15,6 +16,7 @@
 <script src="js/kinetic.js"></script>
 <script src="js/underscore.js"></script>
 <script src="js/backbone.js"></script>
+<script src="js/colorpicker.js"></script>
 <script src="models.js"></script>
 <script src="sketches.js"></script>
 <script src="views.js"></script>
@@ -47,6 +49,11 @@
     <div id="tools" class="btn-group">
       <button id="select" type="button" class="btn btn-md btn-primary">select</button>
       <button id="draw" type="button" class="btn btn-md btn-default">draw</button>
+      <button id="fill" type="button" class="btn btn-md btn-default">fill</button>
+    </div>
+    <div class="input-group color" data-color="rgb(255, 255, 255)" data-color-format="rgb">
+      <input type="text" class="form-control" value="#FFFFFF">
+      <span class="input-group-addon"><i style="background-color: rgb(255, 255, 255)"></i></span>
     </div>
   </div>    
   <div id="data">

@@ -33,6 +33,19 @@ var PaletteView = Backbone.View.extend({
       $(this).addClass('active');
       $(this).toggleClass('btn-primary');
     });
+    $("#fill").on("click", function() {
+      self.state.mode = 'fill';
+      $("#tools button").removeClass('active');
+      $("#tools button").removeClass('btn-primary');
+      $("#tools button").addClass('btn-default');
+      $(this).removeClass('btn-default');
+      $(this).addClass('active');
+      $(this).toggleClass('btn-primary');
+    });
+    $(".color").colorpicker();
+    $(".color").colorpicker().on('changeColor', function(ev) {
+      self.state.color = ev.color.toHex();
+    });
   },
   
   render: function() {
@@ -276,6 +289,7 @@ var CanvasView = Backbone.View.extend({
           tension:  20
         });
         self.layer.add(self.stroke);
+      } else if (self.state.filling()) {
       }
     });
     this.layer.on("mousemove", function(event) {
@@ -405,7 +419,7 @@ var CanvasView = Backbone.View.extend({
     var type = datum.get('type');
     switch(type) {
       case "list":
-        var sketch = new ListSketch({model: datum, layer: self.layer, globals: self.globals, dragData: self.dragData});
+        var sketch = new ListSketch({model: datum, layer: self.layer, globals: self.globals, dragData: self.dragData, state: self.state});
         self.sketches.push(sketch);
         sketch.render();
         break;

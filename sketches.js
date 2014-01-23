@@ -293,6 +293,7 @@ var ListSketch = DatumSketch.extend({
     this.layer = options.layer;
     this.globals = options.globals;
     this.dragData = options.dragData;
+    this.state = options.state;
     this.selectLeft = -1;
     this.numSelected = 0;
 
@@ -390,6 +391,12 @@ var ListSketch = DatumSketch.extend({
         - on exit, pop from the list datum (list redraws and closes gap) 
     */
     var startDrag = function(event) {
+      if (self.state.filling()) {
+        var tag = this.getTag();
+        tag.setFill(self.state.color);
+        self.layer.draw();
+        return;
+      }
       // move selected elems to global scope
       if (self.numSelected > 0) {
         self.selected = [];

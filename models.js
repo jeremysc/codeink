@@ -1,8 +1,9 @@
 // App state
 var State = Backbone.Model.extend({
   initialize: function() {
-    _.bindAll(this, 'selecting', 'drawing');
+    _.bindAll(this, 'selecting', 'drawing', 'filling');
     this.mode = 'select';
+    this.color = '#FFFFFF';
   },
 
   selecting: function() {
@@ -10,6 +11,9 @@ var State = Backbone.Model.extend({
   },
   drawing: function() {
     return this.mode == 'draw';
+  },
+  filling: function() {
+    return this.mode == 'fill';
   },
 });
 
