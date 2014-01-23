@@ -306,34 +306,36 @@ var CanvasView = Backbone.View.extend({
     });
     $(this.container).on("mouseup", function(event) {
       if (self.dragData.get('dragging')) {
-        if (self.dragData.get('fromSelect')) {
-          var sketch = self.dragData.get('sketch');
-          sketch.destroy();
-          var name;
-          for (var i = 1; i <= 40; i++) {
-            name = 'list'+i;
-            var datum = self.data.findWhere({name: name});
-            if (datum == null)
-              break;
+        var sketch = self.dragData.get('sketch');
+        sketch.destroy();
+        var name;
+        for (var i = 1; i <= 40; i++) {
+          name = 'list'+i;
+          var datum = self.data.findWhere({name: name});
+          if (datum == null)
+            break;
+        }
+        var offset = self.dragData.get('offset');
+        var sketch = self.dragData.get('sketch');
+        var position = {x: event.offsetX - offset.x,
+                        y: event.offsetY - offset.y};
+        if (self.dragData.get('step') != null) {
+          self.steps.trigger('step', {step:self.dragData.get('step')});
+        } else {
+          var dragExpr = self.dragData.get('expr');
+          var dragValues = self.dragData.get('value');
+          if (dragValues.length <= 1) {
+            dragExpr = new NewListExpr({
+              value: dragExpr
+            });
           }
-          var offset = self.dragData.get('offset');
-          var sketch = self.dragData.get('sketch');
-          var position = {x: event.offsetX - offset.x,
-                          y: event.offsetY - offset.y};
           self.data.add(new List({
             name: name,
             initialized: true,
             position: position,
-            values: self.dragData.get('value'),
-            expr: self.dragData.get('expr')
+            values: dragValues,
+            expr: dragExpr
           }));
-        } else {
-          var sketch = self.dragData.get('sketch');
-          sketch.destroy();
-          var step = self.dragData.get('step');
-          if (step != null) {
-            self.steps.trigger('step', {step:step});
-          }
         }
         self.dragData.set(self.dragData.defaults());
         self.layer.draw();

@@ -451,7 +451,7 @@ var ListSketch = DatumSketch.extend({
         sketch: this,
         offset: offset,
         src: self,
-        value: value
+        value: [value]
       });
       this.exited = false;
       this.dwelled = true;
@@ -639,7 +639,8 @@ var ListSketch = DatumSketch.extend({
         var dragIndex = index;
         // Start building the pending step
         var dragExpr = self.dragData.get('expr');
-        if (dragExpr != null && dragExpr.get('action') == 'pop') {
+        if (dragExpr != null && dragExpr.get('action') == 'pop'
+            && dragExpr.get('list').get('name') == self.model.get('name')) {
           var fromIndex = dragExpr.get('index');
           self.dragData.set({
             step: new Rearrange({

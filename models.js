@@ -145,6 +145,17 @@ var Expr = Backbone.Model.extend({
     return code;
   }
 });
+var NewListExpr = Expr.extend({
+  defaults: function() {
+    return {
+      value: "0",
+      parts: {
+        'python': ['[','value',']'],
+        'english': ['a new list: ','[','value',']']
+      }
+    };
+  },
+});
 var ListVarExpr = Expr.extend({
   defaults: function() {
     return {
