@@ -8,6 +8,7 @@ var PaletteView = Backbone.View.extend({
 
   initialize: function(options) {
     var self = this;
+    _.bindAll(this, 'render', 'setMode');
     this.$el.html(_.template($("#palette-template").html()));
     this.state = options.state;
 
@@ -15,37 +16,43 @@ var PaletteView = Backbone.View.extend({
       event.originalEvent.dataTransfer.setData('text/plain', event.currentTarget.id);
     });
 
-    $("#draw").on("click", function() {
-      self.state.mode = 'draw';
-      $("#tools button").removeClass('active');
-      $("#tools button").removeClass('btn-primary');
-      $("#tools button").addClass('btn-default');
-      $(this).removeClass('btn-default');
-      $(this).addClass('active');
-      $(this).toggleClass('btn-primary');
-    });
     $("#select").on("click", function() {
-      self.state.mode = 'select';
-      $("#tools button").removeClass('active');
-      $("#tools button").removeClass('btn-primary');
-      $("#tools button").addClass('btn-default');
-      $(this).removeClass('btn-default');
-      $(this).addClass('active');
-      $(this).toggleClass('btn-primary');
+      self.setMode('select');
+    });
+    $("#draw").on("click", function() {
+      self.setMode('draw');
     });
     $("#fill").on("click", function() {
-      self.state.mode = 'fill';
-      $("#tools button").removeClass('active');
-      $("#tools button").removeClass('btn-primary');
-      $("#tools button").addClass('btn-default');
-      $(this).removeClass('btn-default');
-      $(this).addClass('active');
-      $(this).toggleClass('btn-primary');
+      self.setMode('fill');
+    });
+    $(document).keydown(function(e) {
+      switch(e.which) {
+        case 83: //s
+          self.setMode('select');
+          return;
+        case 68: //d
+          self.setMode('draw');
+          return;
+        case 70: //f
+          self.setMode('fill');
+          return;
+      }
     });
     $(".color").colorpicker();
     $(".color").colorpicker().on('changeColor', function(ev) {
       self.state.color = ev.color.toHex();
     });
+  },
+
+  setMode: function(mode) {
+    var selector = "#" + mode;
+    this.state.mode = mode;
+    $("#tools button").removeClass('active');
+    $("#tools button").removeClass('btn-primary');
+    $("#tools button").addClass('btn-default');
+    $(selector).removeClass('btn-default');
+    $(selector).addClass('btn-primary');
+    $(selector).addClass('active');
   },
   
   render: function() {
@@ -134,51 +141,6 @@ var ActiveStepView = Backbone.View.extend({
       padding: 5,
       fill: dropTarget ? '#0088cc' : 'black'
     }));
-    if (dropTarget) {
-      label.on("mouseover", function() {
-        var tag = this.getTag();
-        tag.setStroke('black');
-        self.layer.draw();
-      });
-      label.on("mouseout", function() {
-        var tag = this.getTag();
-        tag.setStroke('');
-        self.layer.draw();
-      });
-      // handle dragging of variables in
-      label.on("mouseenter", function(event) {
-        if (self.dragData.get('dragging') && ! self.dragData.get('engaged')) {
-          self.dragData.set({engaged: true});
-          // hide the dragged data
-          self.dragData.get('sketch').hide();
-          // set the part 
-          expr.dragChange(partName, self.dragData.get('expr'));
-          self.tempStep.trigger('change');
-        }
-      });
-      label.on("mouseleave", function(event) {
-        if (self.dragData.get('dragging') && self.dragData.get('engaged')) {
-          self.dragData.set({engaged: false});
-          // reset the text
-          expr.dragReset(partName);
-          self.tempStep.trigger('change');
-          // show the sketch
-          self.dragData.get('sketch').show();
-        }
-      });
-      label.on("mouseup", function(event) {
-        //TODO fix flickering for dragging list items into step
-        if (self.dragData.get('dragging') && self.dragData.get('engaged')) {
-          var step = self.model.get('step');
-          step.set(self.tempStep.toJSON());
-          self.model.set({step: step});
-          self.model.trigger('change');
-          self.dragData.get('sketch').destroy();
-          self.dragData.set(self.dragData.defaults());
-          //self.layer.draw();
-        }
-      });
-    }
     label.on("dblclick", function() {
       var newExpr = prompt('Modify expression', text);
       if (newExpr != null) {
@@ -448,7 +410,7 @@ var StepsView = Backbone.View.extend({
 
     this.indent = 0;
     
-    _.bindAll(this, 'render', 'handleStep', 'handleScrub', 'updateTrace_add', 'updateTrace_change', 'updateDataFromTrace');
+    _.bindAll(this, 'render', 'handleStep', 'updateTrace', 'updateDataFromTrace', 'startPlayback', 'pausePlayback');
 
     this.$el.html(_.template($("#steps-template").html()));
 
@@ -458,53 +420,57 @@ var StepsView = Backbone.View.extend({
     this.data.on("change:name", this.render);
 
     this.steps.on("add", this.render);
-    this.steps.on("add", this.updateTrace_add);
+    this.steps.on("add", this.updateTrace);
     
     this.steps.on("change", this.render);
-    this.steps.on("change", this.updateTrace_change);
 
     this.trace.on("reset", this.updateDataFromTrace);
 
     this.activeStep.on("change", this.render);
-    this.activeStep.on("scrub", this.handleScrub);
 
-    var stepBack = function() {
-      var id = self.activeStep.get('id');
-      if (id > 1) {
-        id -= 1;
-        var traceStep = self.trace.at(id-1);
-        var line = traceStep.get('line'); 
-        self.activeStep.set({step: self.steps.at(line-1), line: line, id: id});
-        self.updateDataFromTrace();
-      }
-    };
-    var stepForward = function() {
-      var id = self.activeStep.get('id');
-      if (id < self.trace.size()-1) {
-        id += 1;
-        var traceStep = self.trace.at(id-1);
-        var line = traceStep.get('line');
+    // Lines: 1 to N
+    // Steps: 0 to N-1
+    this.stepBack = function() {
+      var line = self.activeStep.get('line');
+      if (line > 1) {
+        line -= 1;
         var step = self.steps.at(line-1);
-        self.activeStep.set({step: self.steps.at(line-1), line: line, id: id});
+        self.activeStep.set({step: step, line: line});
+        self.updateDataFromTrace();
+        return true;
+      }
+      return false;
+    };
+    this.stepForward = function() {
+      var line = self.activeStep.get('line');
+      if (line < self.steps.size()) {
+        line += 1;
+        var step = self.steps.at(line-1);
+        self.activeStep.set({step: step, line: line});
         if (!step.animate(self.updateDataFromTrace))
           self.updateDataFromTrace();
+        return true;
       }
+      return false;
     };
-
+    
     // buttons
-    $("#back").click(stepBack);
-    $("#forward").click(stepForward);
+    $("#back").click(this.stepBack);
+    $("#forward").click(this.stepForward);
     $("#unindent").click(function() {
       self.steps.trigger('step', {indent:-1});
     });
     $(document).keydown(function(e) {
       switch(e.which) {
         case 37:
-          stepBack();
+          self.stepBack();
           return;
         case 39:
-          stepForward();
+          self.stepForward();
           return;
+        case 83: //s
+        case 68: //d
+        case 70: //f
       }
     });
 
@@ -513,7 +479,41 @@ var StepsView = Backbone.View.extend({
       self.language = this.value;
       self.render();
     });
+    
+    $("#record").click(function() {
+      var recording = $(this).html() != "stop recording";
+      if (recording) {
+        $(this).html("stop recording");
+      } else {
+        $(this).html("record mic <span class='glyphicon glyphicon-headphones'></span>");
+      }
+    });
+      
+    $("#playback").click(function() {
+      if (self.playing == undefined || ! self.playing)
+        self.startPlayback();
+      else
+        self.pausePlayback();
+    });
 
+  },
+
+  startPlayback: function() {
+    var self = this;
+    this.playing = true;
+    $("#playback").html("pause <span class='glyphicon glyphicon-pause'></span>");
+    this.player = setInterval(function() {
+      if (! self.stepForward()) {
+        self.pausePlayback();
+      }
+    }, 750);
+  },
+  
+  pausePlayback: function() {
+    var self = this;
+    this.playing = false;
+    clearInterval(this.player);
+    $("#playback").html("play <span class='glyphicon glyphicon-play'></span>");
   },
 
   // step generated from some sketch interaction
@@ -529,14 +529,7 @@ var StepsView = Backbone.View.extend({
     }
   },
 
-  handleScrub: function(event) {
-    var line = event.line;
-    var id = event.id;
-    this.activeStep.set({step: this.steps.at(line-1), line: line, id: id});
-    this.updateDataFromTrace();
-  },
-
-  updateTrace_add: function() {
+  updateTrace: function() {
     var self = this;
     var backend_script = "opt/web_exec.py";
     var options = {cumulative_mode: false,
@@ -549,51 +542,13 @@ var StepsView = Backbone.View.extend({
            options_json: JSON.stringify(options)},
           function(dataFromBackend) {
             var trace = dataFromBackend.trace;
+            // Handle a BDB traceback
             if (trace.length == 1 && trace[0].event == 'uncaught_exception') {
-              self.activeStep.set({step: self.steps.last(), line: self.steps.size(), id: self.activeStep.get('id')+1});
+              self.activeStep.set({step: self.steps.last(), line: self.steps.size()});
               console.log("Error: " + trace[0].exception_msg);
+            // Otherwise, FF to the end and reset the trace
             } else {
-              self.activeStep.set({step: self.steps.last(), line: self.steps.size(), id: self.activeStep.get('id')+1});
-              var id = self.activeStep.get('id')+1;
-              var step = self.steps.last();
-              var line = self.steps.size();
-              for (var i = 0; i < trace.length; i++) {
-                if (trace[i].line == line) {
-                  id = i+1;
-                  break;
-                }
-              }
-              self.activeStep.set({step: step, line: line, id: id});
-              self.trace.reset(trace);
-            }
-          },
-          "json");
-  },
-  updateTrace_change: function() {
-    var self = this;
-    var backend_script = "opt/web_exec.py";
-    var options = {cumulative_mode: false,
-                   heap_primitives: false,
-                   show_only_outputs: false};
-    var user_script = this.steps.map(function(step) {return step.toCode();}).join("\n");
-    $.get(backend_script,
-          {user_script: user_script,
-           raw_input_json: '',
-           options_json: JSON.stringify(options)},
-          function(dataFromBackend) {
-            var trace = dataFromBackend.trace;
-            if (trace.length == 1 && trace[0].event == 'uncaught_exception') {
-              console.log("Error: " + trace[0].exception_msg);
-            } else {
-              // find first instance of line, if it exists and update the step
-              var id = self.activeStep.get('id');
-              var line = self.activeStep.get('line');
-              for (var i = 0; i < trace.length; i++) {
-                if (trace[i].line == line) {
-                  self.activeStep.set({id: i+1});
-                  break;
-                }
-              }
+              self.activeStep.set({step: self.steps.last(), line: self.steps.size()});
               self.trace.reset(trace);
             }
           },
@@ -601,11 +556,18 @@ var StepsView = Backbone.View.extend({
   },
 
   updateDataFromTrace: function() {
-    var id = this.activeStep.get('id');
-    if (this.trace.size() <= id) {
-      return;
+    var line = this.activeStep.get('line');
+    // find traceStep with line number > line
+    // trace steps show state before the trace.line has run. so we need trace.line > currLine.
+    var traceStep;
+    for (var index = 0; index < this.trace.length; index++) {
+      var t = this.trace.at(index);
+      if (t.get('line') > line) {
+        traceStep = t;
+        break;
+      }
     }
-    var traceStep = this.trace.at(id);
+    if (traceStep == undefined) traceStep = this.trace.last();
 
     var ordered_globals = traceStep.get('ordered_globals');
     var globals = traceStep.get('globals');
@@ -614,6 +576,7 @@ var StepsView = Backbone.View.extend({
     this.data.each(function(datum) {
       datum.set({visible: datum.getSymbol() in globals});
     });
+    // update the data values (should trigger re-rendering)
     for (var i = 0; i < ordered_globals.length; i++) {
       var name = ordered_globals[i];
       if (name in globals) {
@@ -622,9 +585,11 @@ var StepsView = Backbone.View.extend({
         // numbers and lists of numbers only for now
         if (isPrimitiveType(value) && datum.get('type') == 'num') {
           datum.set({value: value});
+          datum.trigger('change');
         } else if (isPrimitiveType(value) && datum.get('type') == 'bool') {
           var boolVal = value ? "True" : "False";
           datum.set({value: boolVal});
+          datum.trigger('change');
         } else if (isArray(value) && datum.get('type') == 'list') {
           var refNumber = value[1];
           var values = heap[refNumber];
@@ -636,26 +601,35 @@ var StepsView = Backbone.View.extend({
             continue;
           }
           datum.set({values: values});
+          datum.trigger('change');
         }
       }
     }
+    // update fill colors
+    this.steps.each(function(step, index) {
+      if (index <= line-1 && step.get('action') == 'fill') {
+        var datum = step.get('list');
+        var index = step.get('index');
+        var color = step.get('color');
+        datum.trigger('fill', {index: index, color: color});
+      }
+    });
   },
   
+  // render steps
   render: function() {
     var self = this;
     var activeLine = this.activeStep.get('line');
     this.$("#steps-body").html("");
-    this.steps.each(function(step, line) {
-      line += 1;
+    this.steps.each(function(step, index) {
+      var line = index + 1;
       var view = new StepListView({model: step});
       var el = view.render(self.language).el;
       this.$("#steps-body").append(el);
       if (line == activeLine)
         $(el).find("code").addClass('active');
       $(el).find("a").click(function() {
-        var traceStep = self.trace.findWhere({line: line});
-        var id = self.trace.indexOf(traceStep)+1;
-        self.activeStep.set({step: step, line: line, id: id});
+        self.activeStep.set({step: step, line: line});
         self.updateDataFromTrace();
       });
     });

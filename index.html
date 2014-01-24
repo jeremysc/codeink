@@ -51,9 +51,9 @@
       <button id="draw" type="button" class="btn btn-md btn-default">draw</button>
       <button id="fill" type="button" class="btn btn-md btn-default">fill</button>
     </div>
-    <div class="input-group color" data-color="rgb(255, 255, 255)" data-color-format="rgb">
-      <input type="text" class="form-control" value="#FFFFFF">
-      <span class="input-group-addon"><i style="background-color: rgb(255, 255, 255)"></i></span>
+    <div class="input-group color" data-color="#79c2f7">
+      <input type="text" class="form-control" value="#79c2f7">
+      <span class="input-group-addon"><i></i></span>
     </div>
   </div>    
   <div id="data">
@@ -70,8 +70,14 @@
       <option value='english'>english</option>
     </select>
   </h3>
-  <button id="back" class="btn" type="button">back</button>
-  <button id="forward" class="btn" type="button">forward</button>
+  <div>
+    <button id="record" type="button" class="btn btn-md btn-danger">record <span class="glyphicon glyphicon-headphones"></span></button>
+    <button id="playback" type="button" class="btn btn-md btn-success">play <span class="glyphicon glyphicon-play"></span></button>
+  </div>
+  <div>
+    <button id="back" class="btn" type="button">back</button>
+    <button id="forward" class="btn" type="button">forward</button>
+  </div>
   <ul id="steps-body" class="nav nav-stacked"></ul>
 </script>
 

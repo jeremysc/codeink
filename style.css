@@ -18,5 +18,9 @@ code.active {
   margin-bottom: 2px;
 }
 .color {
+  width: 130px;
+}
+#steps button {
   width: 30%;
+  margin-bottom: 2px;
 }

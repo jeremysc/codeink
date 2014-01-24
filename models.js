@@ -3,7 +3,7 @@ var State = Backbone.Model.extend({
   initialize: function() {
     _.bindAll(this, 'selecting', 'drawing', 'filling');
     this.mode = 'select';
-    this.color = '#FFFFFF';
+    this.color = '#79c2f7';
   },
 
   selecting: function() {
@@ -201,7 +201,15 @@ var Step = Expr.extend({
 });
 
 var ActiveStep = Backbone.Model.extend({
-  defaults: {step: new Step(), id: 0, line: 0}
+  // N lines
+  // G trace steps
+
+  // Line numbers: 1 to N
+  // Index in Steps collection: 0 to N-1
+  // Index in Trace collection: 0 to G-1
+  // each TraceStep has trace.line between 1 and N
+
+  defaults: {step: new Step(), line: 0}
 });
 
 var Steps = Backbone.Collection.extend({
@@ -275,4 +283,18 @@ var Rearrange = Step.extend({
   }
 });
 
+var Fill = Step.extend({
+  defaults: {
+    action: 'fill',
+    indent: 0,
+    parts: {
+      'python': ['# fill ', 'variable', ' with color ', 'color'],
+      'english': ['# fill ', 'variable', ' with color ', 'color'],
+    },
+    variable: null,
+    list: null,
+    index: null,
+    color: null
+  }
+});
 

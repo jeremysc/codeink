@@ -289,7 +289,7 @@ var ListSketch = DatumSketch.extend({
 
   initialize: function(options) {
     var self = this;
-    _.bindAll(this, 'render', 'animateAppend', 'animateRearrange', 'selectIfIntersects');
+    _.bindAll(this, 'render', 'animateAppend', 'animateRearrange', 'selectIfIntersects', 'setFill');
     this.layer = options.layer;
     this.globals = options.globals;
     this.dragData = options.dragData;
@@ -315,6 +315,13 @@ var ListSketch = DatumSketch.extend({
       self.model.set({position: this.getPosition()});
     });
     this.model.on('change', this.render);
+    this.model.on('fill', this.setFill);
+  },
+  
+  setFill: function(options) {
+    var sketch = this.sketches[options.index];
+    sketch.getTag().setFill(options.color);
+    this.layer.draw();
   },
 
   selectIfIntersects: function(rect) {
@@ -392,9 +399,16 @@ var ListSketch = DatumSketch.extend({
     */
     var startDrag = function(event) {
       if (self.state.filling()) {
-        var tag = this.getTag();
-        tag.setFill(self.state.color);
-        self.layer.draw();
+        var step = new Fill({
+          variable: new ListVarExpr({
+            list: self.model,
+            index: index
+          }),
+          list: self.model,
+          index: index,
+          color: self.state.color
+        });
+        self.model.trigger('step', {step: step});
         return;
       }
       // move selected elems to global scope
@@ -503,11 +517,9 @@ var ListSketch = DatumSketch.extend({
             // modify the expression to be a pop
             var expr = new Pop({list: self.model, index: index});
             self.dragData.set({'expr': expr});
-            console.log("exit WITH dwell");
           } else {
             // duplicate sketch
             self.renderListValue(x,y,value,index);
-            console.log("exit WITHOUT dwell");
           }
         }
       }
