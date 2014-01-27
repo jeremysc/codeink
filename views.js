@@ -236,7 +236,7 @@ var CanvasView = Backbone.View.extend({
           height: 1,
           stroke: 'orange',
           fill: 'blue',
-          opacity: 0.05,
+          opacity: 0.1,
           strokeWidth: 1 
         });
         self.layer.add(self.selectRect);
@@ -495,6 +495,13 @@ var StepsView = Backbone.View.extend({
       else
         self.pausePlayback();
     });
+
+    /*
+    $("#slider").slider({
+      value: 0,
+      orientation: 'vertical',
+    });
+    */
 
   },
 

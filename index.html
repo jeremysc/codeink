@@ -8,6 +8,7 @@
 <style>
 @import url(css/bootstrap.css);
 @import url(css/colorpicker.css);
+@import url(css/slider.css);
 @import url(style.css);
 </style>
 
@@ -17,6 +18,7 @@
 <script src="js/underscore.js"></script>
 <script src="js/backbone.js"></script>
 <script src="js/colorpicker.js"></script>
+<script src="js/slider.js"></script>
 <script src="models.js"></script>
 <script src="sketches.js"></script>
 <script src="views.js"></script>
@@ -78,7 +80,13 @@
     <button id="back" class="btn" type="button">back</button>
     <button id="forward" class="btn" type="button">forward</button>
   </div>
-  <ul id="steps-body" class="nav nav-stacked"></ul>
+  <div class="row">
+    <div class="col-xs-10">
+      <ul id="steps-body" class="nav nav-stacked"></ul>
+    </div>
+    <div class="col-xs-12" id="slider">
+    </div>
+  </div>
 </script>
 
 <script type="text/template" id="step-template">
