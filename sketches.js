@@ -320,7 +320,6 @@ var BinaryNodeSketch = DatumSketch.extend({
       // The raw dropped position, before it has been inserted into a tree
       this.group = new Kinetic.Group({
         name: this.model.getSymbol(),
-        draggable: true
       });
       this.group.on("dragend", function(event) {
         //self.model.set({position: this.getPosition()});
@@ -336,7 +335,6 @@ var BinaryNodeSketch = DatumSketch.extend({
     var position = this.model.get('position');
     this.group.setPosition(position);
 
-    // draggable label for the list
     var label = new Kinetic.Label({
       x: 0,
       y: -28,
@@ -356,23 +354,38 @@ var BinaryNodeSketch = DatumSketch.extend({
 
     // draw the node and pointers (hidden)
     var value = this.model.get('value');
-    this.node = new Kinetic.Label({
-      x: 0,
-      y: 0,
-    });
-    this.node.add(new Kinetic.Tag({
+    this.node = new Kinetic.Circle({
+      x: node_dim/2,
+      y: node_dim/2,
+      radius: node_dim/2,
+      stroke: 'black',
       strokeWidth: 3
-    }));
-    this.node.add(new Kinetic.Text({
+    });
+    this.text = new Kinetic.Text({
       text: value,
       fontFamily: 'Helvetica',
       fontSize: 35,
-      width: box_dim,
-      height: box_dim,
-      offsetY: -5,
+      width: node_dim,
+      height: node_dim,
+      offsetY: -10,
       align: 'center',
       fill: 'black'
-    }));
+    });
+    this.node.on("dblclick", function() {
+      var value = prompt('Enter new value');
+      if (value != null) {
+        self.model.set({value: value});
+        var step = new Assignment({
+          variable: new AttrExpr({object: self.model, attr: "value", value: value}),
+          value: value
+        });
+        self.model.trigger('step', {step: step});
+      }
+    });
+
+    // draw the pointers
+    console.log(this.model.toJSON());
+    this.group.add(this.text);
     this.group.add(this.node);
     this.layer.add(this.group);
     this.layer.draw();

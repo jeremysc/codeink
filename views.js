@@ -1,5 +1,6 @@
 var box_dim = 45;
 var box_shift = 3;
+var node_dim = 1.25*box_dim;
 var stageWidth = 850;
 var stageHeight = 550;
 

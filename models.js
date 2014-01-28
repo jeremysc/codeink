@@ -208,6 +208,18 @@ var NodeExpr = Expr.extend({
     };
   },
 });
+var AttrExpr = Expr.extend({
+  defaults: function() {
+    return {
+      object: "node",
+      attr: "value",
+      parts: {
+        'python': ['object','.','attr'],
+        'english': ['object','.','attr']
+      }
+    };
+  },
+});
 
 // ---------------
 // STEPS
