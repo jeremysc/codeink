@@ -370,6 +370,12 @@ var CanvasView = Backbone.View.extend({
           position: position
         }));
         break;
+      case "node":
+        this.data.add(new BinaryNode({
+          name: name,
+          position: position
+        }));
+        break;
       default:
         break;
     }
@@ -387,6 +393,11 @@ var CanvasView = Backbone.View.extend({
         break;
       case "num":
         var sketch = new NumberSketch({model: datum, layer: self.layer, globals: self.globals, dragData: self.dragData});
+        self.sketches.push(sketch);
+        sketch.render();
+        break;
+      case "node":
+        var sketch = new BinaryNodeSketch({model: datum, layer: self.layer, globals: self.globals, dragData: self.dragData});
         self.sketches.push(sketch);
         sketch.render();
         break;
@@ -542,7 +553,8 @@ var StepsView = Backbone.View.extend({
     var options = {cumulative_mode: false,
                    heap_primitives: false,
                    show_only_outputs: false};
-    var user_script = this.steps.map(function(step) {return step.toCode();}).join("\n");
+    var user_script = BinaryNodeCode.join("\n");
+    user_script += this.steps.map(function(step) {return step.toCode();}).join("\n");
     $.get(backend_script,
           {user_script: user_script,
            raw_input_json: '',
@@ -563,7 +575,7 @@ var StepsView = Backbone.View.extend({
   },
 
   updateDataFromTrace: function() {
-    var line = this.activeStep.get('line');
+    var line = this.activeStep.get('line') + BinaryNodeCode.length;
     // find traceStep with line number > line
     // trace steps show state before the trace.line has run. so we need trace.line > currLine.
     var traceStep;
@@ -583,11 +595,23 @@ var StepsView = Backbone.View.extend({
     this.data.each(function(datum) {
       datum.set({visible: datum.getSymbol() in globals});
     });
+    // build a map from heap references to data
+    var heapMap = {};
+    for (var i = 0; i < ordered_globals.length; i++) {
+      var name = ordered_globals[i];
+      var datum = this.data.findWhere({name: name});
+      var value = globals[name];
+      if (isArray(value) && value[0] == "REF")
+        heapMap[value[1]] = datum;
+    }
+
     // update the data values (should trigger re-rendering)
     for (var i = 0; i < ordered_globals.length; i++) {
       var name = ordered_globals[i];
       if (name in globals) {
         var datum = this.data.findWhere({name: name});
+        if (datum == undefined)
+          continue;
         var value = globals[name];
         // numbers and lists of numbers only for now
         if (isPrimitiveType(value) && datum.get('type') == 'num') {
@@ -608,6 +632,24 @@ var StepsView = Backbone.View.extend({
             continue;
           }
           datum.set({values: values});
+          datum.trigger('change');
+        } else if (isArray(value) && datum.get('type') == 'node') {
+          var refNumber = value[1];
+          var attrs = heap[refNumber];
+          var values = {};
+          attrs.map(function(attr) {
+            if (! isArray(attr))
+              return;
+            var attrName = attr[0];
+            var attrValue = attr[1];
+            if (isArray(attrValue)) {
+              attrValue = heapMap[attrValue[1]];
+              values[attrName] = attrValue;
+            } else if (isPrimitiveType(attrValue)) {
+              values[attrName] = attrValue;
+            }
+          });
+          datum.set(values);
           datum.trigger('change');
         }
       }

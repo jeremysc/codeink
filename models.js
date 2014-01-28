@@ -108,6 +108,31 @@ var List = Datum.extend({
   }
 });
 
+var BinaryNode = Datum.extend({
+  defaults: function() {
+    return {
+      visible: true,
+      name: "nodeA",
+      type: "node",
+      value: 1,
+      left: null,
+      right: null
+    };
+  },
+
+  getValue: function() {
+    return this.get('value');
+  }
+});
+
+var BinaryNodeCode = [
+  "class BinaryNode:",
+  "  def __init__(self, value, left=None):",
+  "    self.value = value",
+  "    self.left = left",
+  "    self.right = None",
+  ""];
+
 // ---------------
 // EXPRESSIONS 
 // composed of  literal strings (']'),
@@ -168,6 +193,17 @@ var ListVarExpr = Expr.extend({
       parts: {
         'python': ['list','[','index',']'],
         'english': ['list','[','index',']']
+      }
+    };
+  },
+});
+var NodeExpr = Expr.extend({
+  defaults: function() {
+    return {
+      value: "0",
+      parts: {
+        'python': ['BinaryNode(','value',')'],
+        'english': ['new node with value ','value']
       }
     };
   },

@@ -284,6 +284,101 @@ var NumberSketch = DatumSketch.extend({
   }
 });
 
+var BinaryNodeSketch = DatumSketch.extend({
+  model: BinaryNode,
+
+  initialize: function(options) {
+    var self = this;
+    _.bindAll(this, 'render', 'selectIfIntersects', 'setFill');
+    this.layer = options.layer;
+    this.globals = options.globals;
+    this.dragData = options.dragData;
+    this.state = options.state;
+
+    this.model.on('change', this.render);
+    this.model.on('fill', this.setFill);
+    var step = new Assignment({
+      variable: this.model,
+      value: new NodeExpr({value: this.model.getValue()})
+    });
+    this.model.trigger('step', {step: step});
+  },
+  
+  setFill: function(options) {
+    console.log('filling');
+  },
+  
+  selectIfIntersects: function(rect) {
+  },
+  
+  render: function() {
+    var self = this;
+    if (this.group) {
+      this.group.removeChildren();
+      this.group.remove();
+    } else {
+      // The raw dropped position, before it has been inserted into a tree
+      this.group = new Kinetic.Group({
+        name: this.model.getSymbol(),
+        draggable: true
+      });
+      this.group.on("dragend", function(event) {
+        //self.model.set({position: this.getPosition()});
+        console.log(this.getPosition());
+      });
+    }
+    if (! this.model.get('visible')) {
+      this.layer.draw();
+      return;
+    }
+    
+    // Update the group's position
+    var position = this.model.get('position');
+    this.group.setPosition(position);
+
+    // draggable label for the list
+    var label = new Kinetic.Label({
+      x: 0,
+      y: -28,
+      opacity: 0.75
+    });
+    label.add(new Kinetic.Tag({
+      fill: 'yellow'
+    }));
+    label.add(new Kinetic.Text({
+      text: this.model.getSymbol(),
+      fontFamily: 'Helvetica',
+      fontSize: 18,
+      padding: 5,
+      fill: 'black'
+    }));
+    this.group.add(label);
+
+    // draw the node and pointers (hidden)
+    var value = this.model.get('value');
+    this.node = new Kinetic.Label({
+      x: 0,
+      y: 0,
+    });
+    this.node.add(new Kinetic.Tag({
+      strokeWidth: 3
+    }));
+    this.node.add(new Kinetic.Text({
+      text: value,
+      fontFamily: 'Helvetica',
+      fontSize: 35,
+      width: box_dim,
+      height: box_dim,
+      offsetY: -5,
+      align: 'center',
+      fill: 'black'
+    }));
+    this.group.add(this.node);
+    this.layer.add(this.group);
+    this.layer.draw();
+  }
+});
+
 var ListSketch = DatumSketch.extend({
   model: List,
 
