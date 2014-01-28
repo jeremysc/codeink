@@ -554,8 +554,16 @@ var StepsView = Backbone.View.extend({
     var options = {cumulative_mode: false,
                    heap_primitives: false,
                    show_only_outputs: false};
-    var user_script = BinaryNodeCode.join("\n");
+    
+    var user_script = ClassDefinitions.toCode();
     user_script += this.steps.map(function(step) {return step.toCode();}).join("\n");
+    /*
+    var scriptLines = user_script.split('\n');
+    for (var i = 0; i < scriptLines.length; i++) {
+      console.log((i+1) + ": " + scriptLines[i]);
+    }
+    */
+
     $.get(backend_script,
           {user_script: user_script,
            raw_input_json: '',
@@ -576,7 +584,7 @@ var StepsView = Backbone.View.extend({
   },
 
   updateDataFromTrace: function() {
-    var line = this.activeStep.get('line') + BinaryNodeCode.length;
+    var line = this.activeStep.get('line') + ClassDefinitions.numLines();
     // find traceStep with line number > line
     // trace steps show state before the trace.line has run. so we need trace.line > currLine.
     var traceStep;

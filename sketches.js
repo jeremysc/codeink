@@ -323,7 +323,7 @@ var BinaryNodeSketch = DatumSketch.extend({
       });
       this.group.on("dragend", function(event) {
         //self.model.set({position: this.getPosition()});
-        console.log(this.getPosition());
+        //console.log(this.getPosition());
       });
     }
     if (! this.model.get('visible')) {
@@ -384,7 +384,7 @@ var BinaryNodeSketch = DatumSketch.extend({
     });
 
     // draw the pointers
-    console.log(this.model.toJSON());
+    //console.log(this.model.toJSON());
     this.group.add(this.text);
     this.group.add(this.node);
     this.layer.add(this.group);

@@ -125,13 +125,39 @@ var BinaryNode = Datum.extend({
   }
 });
 
-var BinaryNodeCode = [
-  "class BinaryNode:",
-  "  def __init__(self, value, left=None):",
-  "    self.value = value",
-  "    self.left = left",
-  "    self.right = None",
-  ""];
+var ClassDefinitionsModel = Backbone.Model.extend({
+  initialize: function() {
+    this.definitions = [
+      [
+      "class BinaryNode:",
+      "  def __init__(self, value, left=None):",
+      "    self.value = value",
+      "    self.left = left",
+      "    self.right = None"
+      ]
+    ];
+  },
+
+  toCode: function() {
+    var script = "";
+    for (var i = 0; i < this.definitions.length; i++) {
+      var def = this.definitions[i];
+      script += def.join("\n") + "\n\n";
+    }
+    return script;
+  },
+
+  numLines: function() {
+    var num = 0;
+    for (var i = 0; i < this.definitions.length; i++) {
+      num += this.definitions[i].length;
+      num += 1;
+    }
+    return num;
+  }
+});
+
+var ClassDefinitions = new ClassDefinitionsModel;
 
 // ---------------
 // EXPRESSIONS 
