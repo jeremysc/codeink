@@ -1,0 +1,10 @@
+create two nodes
+
+drag node2 
+  - dragging = true
+  - query CanvasView for overlaps:
+    - other nodes
+      - Set comparing for both to be true
+      - Re-render: the dragged node will take care of it, the other one just hides
+      - Don't re-render until comparing is switched off
+     

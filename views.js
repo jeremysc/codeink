@@ -258,11 +258,35 @@ var CanvasView = Backbone.View.extend({
     this.layer.on("mousemove", function(event) {
       if (self.dragData.get('dragging')) {
         var offset = self.dragData.get('offset');
-        var sketch = self.dragData.get('sketch');
         var position = {x: event.offsetX - offset.x,
                         y: event.offsetY - offset.y};
-        sketch.setPosition(position);
-        self.layer.draw();
+
+        var sketch = self.dragData.get('sketch');
+        if (sketch.model && sketch.model.get('type') == 'node') {
+          sketch.moveTo(position);
+          // look for intersections
+          for (var i = 0; i < self.sketches.length; i++) {
+            var s = self.sketches[i];
+            var otherModel = s.model;
+            if (otherModel.get('type') != 'node' || 
+                otherModel.get('name') == sketch.model.get('name'))
+              continue;
+
+            // check if the current mouse location overlaps with node
+            // if so, show the comparison
+            // otherwise, hide the comparison and update the position
+            // check for node intersection
+            if (s.nodeIntersects(position))
+              s.showComparison(sketch);
+            else
+              s.hideComparison(sketch);
+            // otherwise, check for pointer intersection
+            // lastly, check for end-of-pointer intersection
+          }
+        } else {
+          sketch.setPosition(position);
+          self.layer.draw();
+        }
       } else if (self.selecting) {
         var current = {
           x: event.offsetX,
@@ -283,36 +307,41 @@ var CanvasView = Backbone.View.extend({
     });
     $(this.container).on("mouseup", function(event) {
       if (self.dragData.get('dragging')) {
-        var sketch = self.dragData.get('sketch');
-        sketch.destroy();
-        var name;
-        for (var i = 1; i <= 40; i++) {
-          name = 'list'+i;
-          var datum = self.data.findWhere({name: name});
-          if (datum == null)
-            break;
-        }
         var offset = self.dragData.get('offset');
         var sketch = self.dragData.get('sketch');
         var position = {x: event.offsetX - offset.x,
                         y: event.offsetY - offset.y};
-        if (self.dragData.get('step') != null) {
-          self.steps.trigger('step', {step:self.dragData.get('step')});
+
+        var sketch = self.dragData.get('sketch');
+        if (sketch.model && sketch.model.get('type') == "node") {
+          sketch.moveTo(position);
         } else {
-          var dragExpr = self.dragData.get('expr');
-          var dragValues = self.dragData.get('value');
-          if (dragValues.length <= 1) {
-            dragExpr = new NewListExpr({
-              value: dragExpr
-            });
+          sketch.destroy();
+          var name;
+          for (var i = 1; i <= 40; i++) {
+            name = 'list'+i;
+            var datum = self.data.findWhere({name: name});
+            if (datum == null)
+              break;
           }
-          self.data.add(new List({
-            name: name,
-            initialized: true,
-            position: position,
-            values: dragValues,
-            expr: dragExpr
-          }));
+          if (self.dragData.get('step') != null) {
+            self.steps.trigger('step', {step:self.dragData.get('step')});
+          } else {
+            var dragExpr = self.dragData.get('expr');
+            var dragValues = self.dragData.get('value');
+            if (dragValues.length <= 1) {
+              dragExpr = new NewListExpr({
+                value: dragExpr
+              });
+            }
+            self.data.add(new List({
+              name: name,
+              initialized: true,
+              position: position,
+              values: dragValues,
+              expr: dragExpr
+            }));
+          }
         }
         self.dragData.set(self.dragData.defaults());
         self.layer.draw();
@@ -321,11 +350,10 @@ var CanvasView = Backbone.View.extend({
         self.selecting = false;
         self.layer.draw();
       } else if (self.drawing) {
-        if (self.stroke.getPoints().length < 0) {
+        if (self.stroke.getPoints().length < 0)
           self.stroke.destroy();
-        } else {
+        else
           self.strokes.push(self.stroke);
-        }
         self.drawing = false;
         self.layer.draw();
       }
