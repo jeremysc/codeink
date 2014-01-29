@@ -274,7 +274,6 @@ var CanvasView = Backbone.View.extend({
             if (otherModel.get('type') != 'node' || 
                 otherModel.get('name') == sketch.model.get('name'))
               continue;
-            console.log('move');
 
             // check if the current mouse location overlaps with node
             // if so, show the comparison
@@ -299,7 +298,6 @@ var CanvasView = Backbone.View.extend({
               var side = s.intersectsHead(nodePosition);
               // preview the insertion
               if (sketch.showInsertion(s, side)) {
-                console.log("showInsertion");
                 // trigger the step
                 var step = new NodeInsert({
                   parent: s.model,
