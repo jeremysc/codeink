@@ -372,3 +372,18 @@ var Fill = Step.extend({
   }
 });
 
+var Compare = Step.extend({
+  defaults: {
+    action: 'compare',
+    indent: 0,
+    parts: {
+      'python': ['# compare ', 'a', ' with ', 'b'],
+      'english': ['# compare ', 'a', ' with ', 'b'],
+    },
+    a: null,
+    b: null,
+    aSketch: null,
+    bSketch: null,
+  }
+});
+

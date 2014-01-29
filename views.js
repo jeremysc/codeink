@@ -276,10 +276,19 @@ var CanvasView = Backbone.View.extend({
             // if so, show the comparison
             // otherwise, hide the comparison and update the position
             // check for node intersection
-            if (s.nodeIntersects(position))
-              s.showComparison(sketch);
-            else
-              s.hideComparison(sketch);
+            if (s.nodeIntersects(position)) {
+              if (s.showComparison(sketch, true))  {
+                var step = new Compare({
+                  a: sketch.model,
+                  b: s.model,
+                  aSketch: sketch,
+                  bSketch: s
+                });
+                sketch.model.trigger('step', {step: step});
+              }
+            } else {
+              s.hideComparison(true);
+            }
             // otherwise, check for pointer intersection
             // lastly, check for end-of-pointer intersection
           }
@@ -612,6 +621,8 @@ var StepsView = Backbone.View.extend({
   },
 
   updateDataFromTrace: function() {
+    var self = this;
+
     var line = this.activeStep.get('line') + ClassDefinitions.numLines();
     // find traceStep with line number > line
     // trace steps show state before the trace.line has run. so we need trace.line > currLine.
@@ -698,6 +709,18 @@ var StepsView = Backbone.View.extend({
         var index = step.get('index');
         var color = step.get('color');
         datum.trigger('fill', {index: index, color: color});
+      }
+    });
+
+    // update comparisons
+    this.steps.each(function(step, index) {
+      if (step.get('action') == 'compare') {
+        var datum = step.get('b');
+        if (index == self.activeStep.get('line')-1) {
+          datum.trigger('showComparison', step.get('aSketch'));
+        } else if (index < self.activeStep.get('line')-1) {
+          datum.trigger('hideComparison');
+        }
       }
     });
   },

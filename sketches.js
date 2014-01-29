@@ -311,6 +311,8 @@ var BinaryNodeSketch = DatumSketch.extend({
 
     this.model.on('change', this.render);
     this.model.on('fill', this.setFill);
+    this.model.on('showComparison', this.showComparison);
+    this.model.on('hideComparison', this.hideComparison);
     var step = new Assignment({
       variable: this.model,
       value: new NodeExpr({value: this.model.getValue()})
@@ -337,24 +339,26 @@ var BinaryNodeSketch = DatumSketch.extend({
 
   showComparison: function(dragSketch) {
     if (this.comparing)
-      return;
+      return false;
     this.comparing = true;
     this.otherNode = dragSketch;
     this.otherNode.comparing = true;
     this.otherNode.otherNode = null;
     this.render();
     this.otherNode.render();
+    return true;
   },
   
   hideComparison: function() {
     if (!this.comparing)
-      return;
+      return false;
     this.comparing = false;
     this.otherNode.comparing = false;
     this.otherNode.otherNode = null;
     this.render();
     this.otherNode.render();
     this.otherNode = null;
+    return true;
   },
   
   render: function() {
