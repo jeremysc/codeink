@@ -11,6 +11,13 @@ function lineDistance( point1, point2 )
  
   return Math.sqrt( xs + ys );
 }
+function midpoint( point1, point2 )
+{
+  return {
+    x: (point1.x + point2.x)/2,
+    y: (point1.y + point2.y)/2
+  };
+}
 function intersectRect(r1, r2) {
   return !(r2.left > r1.right || 
            r2.right < r1.left || 
@@ -303,16 +310,20 @@ var BinaryNodeSketch = DatumSketch.extend({
 
   initialize: function(options) {
     var self = this;
-    _.bindAll(this, 'render', 'selectIfIntersects', 'setFill', 'nodeIntersects', 'showComparison', 'hideComparison', 'clearTimeouts');
+    _.bindAll(this, 'render', 'selectIfIntersects', 'setFill', 'intersectsNode', 'showComparison', 'hideComparison', 'intersectsPointer', 'intersectsHead', 'showFollow', 'hideFollow', 'getInsertionPoint', 'showInsertion', 'hideInsertion', 'clearTimeouts');
     this.layer = options.layer;
     this.globals = options.globals;
     this.dragData = options.dragData;
     this.state = options.state;
+    this.canvas = options.canvas;
 
     this.model.on('change', this.render);
     this.model.on('fill', this.setFill);
     this.model.on('showComparison', this.showComparison);
     this.model.on('hideComparison', this.hideComparison);
+    this.model.on('showFollow', this.showFollow);
+    this.model.on('hideFollow', this.hideFollow);
+
     var step = new Assignment({
       variable: this.model,
       value: new NodeExpr({value: this.model.getValue()})
@@ -320,8 +331,15 @@ var BinaryNodeSketch = DatumSketch.extend({
     this.model.trigger('step', {step: step});
 
     this.comparing = false;
+    this.following = false;
     this.otherNode = null;
+    this.dragNode = null;
     this.timeouts = [];
+
+    this.left = null;
+    this.right = null;
+    this.parent = null;
+    this.previewSide = null;
   },
   
   setFill: function(options) {
@@ -332,11 +350,15 @@ var BinaryNodeSketch = DatumSketch.extend({
   },
 
   // check if the dragged node intersects with this one
-  nodeIntersects: function(dragPosition) {
-    var distance = lineDistance(dragPosition, this.group.getPosition());
+  intersectsNode: function(dragPosition) {
+    var groupPosition = this.group.getPosition();
+    var nodePosition = this.node.getPosition();
+    nodePosition.x += groupPosition.x;
+    nodePosition.y += groupPosition.y;
+    var distance = lineDistance(dragPosition, nodePosition);
     return distance < node_dim;
   },
-
+  
   showComparison: function(dragSketch) {
     if (this.comparing)
       return false;
@@ -349,15 +371,161 @@ var BinaryNodeSketch = DatumSketch.extend({
     return true;
   },
   
-  hideComparison: function() {
+  hideComparison: function(silent) {
     if (!this.comparing)
       return false;
     this.comparing = false;
     this.otherNode.comparing = false;
     this.otherNode.otherNode = null;
-    this.render();
-    this.otherNode.render();
+    if (silent != undefined || !silent) {
+      this.render();
+      this.otherNode.render();
+    }
     this.otherNode = null;
+    return true;
+  },
+  
+  intersectsPointer: function(dragPosition) {
+    var groupPosition = this.group.getPosition();
+    var points = this.leftLine.getPoints();
+    var startPoint = {
+      x: points[0].x + groupPosition.x,
+      y: points[0].y + groupPosition.y
+    };
+    var endPoint = {
+      x: points[1].x + groupPosition.x,
+      y: points[1].y + groupPosition.y
+    };
+    var leftIntersects = (dragPosition.x <= startPoint.x - node_dim/5 && dragPosition.x >= endPoint.x
+                  &&  dragPosition.y <= endPoint.y && dragPosition.y > startPoint.y + node_dim/5);
+    if (leftIntersects)
+      return "left";
+    
+    points = this.rightLine.getPoints();
+    startPoint = {
+      x: points[0].x + groupPosition.x,
+      y: points[0].y + groupPosition.y
+    };
+    endPoint = {
+      x: points[1].x + groupPosition.x,
+      y: points[1].y + groupPosition.y
+    };
+    var rightIntersects = (dragPosition.x >= startPoint.x + node_dim/5 && dragPosition.x <= endPoint.x
+                  &&  dragPosition.y <= endPoint.y && dragPosition.y > startPoint.y + node_dim/5);
+    if (rightIntersects)
+      return "right";
+    
+    return false;
+  },
+
+  showFollow: function(dragSketch, side) {
+    if (this.following)
+      return false;
+    this.following = true;
+    this.followSide = side;
+    this.dragNode = dragSketch;
+    this.dragNode.following = true;
+    this.render();
+    this.dragNode.render();
+    return true;
+  },
+  
+  hideFollow: function(silent) {
+    if (!this.following)
+      return false;
+    this.following = false;
+    this.followSide = null;
+    this.dragNode.following = false;
+    if (silent != undefined || !silent) {
+      this.render();
+      this.dragNode.render();
+    }
+    this.dragNode = null;
+    return true;
+  },
+ 
+  intersectsHead: function(dragPosition) {
+    var points, xDist, inY, head;
+    var groupPosition = this.group.getPosition();
+    var points = this.leftLine.getPoints();
+    head = {
+      x: points[1].x + groupPosition.x,
+      y: points[1].y + groupPosition.y
+    }
+    xDist = Math.abs(dragPosition.x - head.x);
+    inY = (dragPosition.y > head.y - node_dim/4) && (dragPosition.y < head.y + node_dim*1.25);
+    if (xDist < node_dim*0.75 && inY)
+      return "left";
+    
+    var rightPoints = this.rightLine.getPoints();
+    head = {
+      x: rightPoints[1].x + groupPosition.x,
+      y: rightPoints[1].y + groupPosition.y
+    }
+    xDist = Math.abs(dragPosition.x - head.x);
+    inY = (dragPosition.y > head.y - node_dim/4) && (dragPosition.y < head.y + node_dim*1.25);
+    if (xDist < node_dim*0.75 && inY)
+      return "right";
+    
+    return false;
+  },
+  
+  getInsertionPoint: function(side) {
+    if (! isPrimitiveType(side)) {
+      var childModel = side;
+      var leftModel = this.model.get('left');
+      var rightModel = this.model.get('right');
+      if (leftModel != null && childModel.get("name") == leftModel.get("name"))
+        side = 'left';
+      else if (rightModel != null)
+        side = 'right';
+    }
+    var groupPosition = this.group.getPosition();
+    var head = (side == 'left') ? this.leftHead : this.rightHead;
+    var adjust = (side == 'left') ? -node_dim/2 - 15 : -5;
+    var headPosition = head.getPosition();
+    return {
+      x: groupPosition.x + headPosition.x + adjust,
+      y: groupPosition.y + headPosition.y + 5
+    };
+  },
+  
+  showInsertion: function(parentSketch, side) {
+    if (this.parent != null)
+      return false;
+
+    var childSketch = (side == 'left') ? parentSketch.left : parentSketch.right;
+    if (childSketch != null)
+      return false;
+
+    //console.log("insert " + this.model.get('name') + " at " + parentSketch.model.get('name') + " " + side);
+    this.parent = parentSketch;
+    this.previewSide = side;
+    if (side == 'left')
+      this.parent.left = this;
+    else
+      this.parent.right = this;
+    this.render();
+    return true;
+  },
+  
+  hideInsertion: function(silent) {
+    if (this.parent == null || this.previewSide == null)
+      return false;
+    var childSketch = (this.previewSide == 'left') ? this.parent.left : this.parent.right;
+    if (childSketch == null)
+      return false;
+
+    //console.log("hide " + this.model.get('name') + " at " + this.parent.model.get('name') + " " + this.previewSide);
+    if (this.previewSide == 'left')
+      this.parent.left = null;
+    else
+      this.parent.right = null;
+    this.parent = null;
+    this.previewSide = null;
+
+    if (silent == null || !silent)
+      this.render();
     return true;
   },
   
@@ -369,13 +537,24 @@ var BinaryNodeSketch = DatumSketch.extend({
     } else {
       this.group = new Kinetic.Group({name: this.model.getSymbol()});
     }
-    if (! this.model.get('visible') || (this.comparing && this.otherNode == null)) {
+    if (! this.model.get('visible') || (this.comparing && this.otherNode == null) || (this.following && this.dragNode == null)) {
       this.layer.draw();
       return;
     }
     
     // Update the group's position
-    var position = this.model.get('position');
+    var position;
+    if (this.previewSide != null) {
+      position = this.parent.getInsertionPoint(this.previewSide); 
+    } else if (this.model.get('parent') != null) {
+      this.canvas.sketches.map(function(s) {
+        if (s.model.get('name') == self.model.get('parent').get('name'))
+          self.parent = s;
+      });
+      position = this.parent.getInsertionPoint(this.model); 
+    } else {
+      position = this.model.get('position');
+    }
     this.group.setPosition(position);
 
     if (!this.comparing) {
@@ -421,19 +600,20 @@ var BinaryNodeSketch = DatumSketch.extend({
         var position = self.group.getPosition();
         var offset = {x: event.offsetX - position.x,
                       y: event.offsetY - position.y};
+        var nodeOffset = {x: offset.x - node_dim/2,
+                          y: offset.y - node_dim/2};
         
         self.timeouts.push(setTimeout(function() { 
           self.dragData.set({
             dragging: true,
             sketch: self,
-            offset: offset
+            offset: offset,
+            nodeOffset: nodeOffset
           });
         }, 400, this));
       };
       this.node.on("mousedown", startDrag);//_.debounce(startDrag, 500));
 
-      // draw the pointers
-      //console.log(this.model.toJSON());
       this.group.add(this.text);
       this.group.add(this.node);
     } else if (this.comparing && this.otherNode != null) {
@@ -447,14 +627,14 @@ var BinaryNodeSketch = DatumSketch.extend({
       var value = this.model.get('value');
       var otherValue = this.otherNode.model.get('value');
       var thisPosition, otherPosition, operator;
-      if (value <= otherValue) {
+      if (value < otherValue) {
         thisPosition = {x: -node_dim/4, y: node_dim/2};
         otherPosition = {x: node_dim*1.25, y: node_dim/2};
         operator = "<";
       } else {
         otherPosition = {x: -node_dim/4, y: node_dim/2};
         thisPosition = {x: node_dim*1.25, y: node_dim/2};
-        operator = ">";
+        operator = "<";
       }
       if (value == otherValue)
         operator = "=";
@@ -513,13 +693,62 @@ var BinaryNodeSketch = DatumSketch.extend({
       this.group.add(textOther);
       this.group.add(textOperator);
     }
+      
+    // draw the pointers
+    var pointerRoot = {
+      x: node_dim/2,
+      y: node_dim
+    };
+    var pointerHeight = 100;
+    var pointerWidth = pointerHeight *0.6;
+    this.leftLine = new Kinetic.Line({
+      points: [
+        pointerRoot.x, pointerRoot.y,
+        pointerRoot.x - pointerWidth, pointerRoot.y + pointerHeight
+        ],
+      strokeWidth: (this.following && this.followSide == "left") ? 6 : 3,
+    });
+    this.leftHead = new Kinetic.RegularPolygon({
+      x: pointerRoot.x - pointerWidth,
+      y: pointerRoot.y + pointerHeight,
+      sides: 3,
+      radius: 8,
+      fill: 'black',
+      stroke: 'black',
+      strokeWidth: 3,
+      lineJoin: 'round',
+      rotationDeg: -30,
+    });
+    this.rightLine = new Kinetic.Line({
+      points: [
+        pointerRoot.x, pointerRoot.y,
+        pointerRoot.x + pointerWidth, pointerRoot.y +pointerHeight 
+        ],
+      strokeWidth: (this.following && this.followSide == "right") ? 6 : 3,
+    });
+    this.rightHead = new Kinetic.RegularPolygon({
+      x: pointerRoot.x + pointerWidth,
+      y: pointerRoot.y + pointerHeight,
+      sides: 3,
+      radius: 8,
+      fill: 'black',
+      stroke: 'black',
+      strokeWidth: 3,
+      lineJoin: 'round',
+      rotationDeg: -90,
+    });
+    this.group.add(this.leftLine);
+    this.group.add(this.leftHead);
+    this.group.add(this.rightLine);
+    this.group.add(this.rightHead);
 
     this.layer.add(this.group);
     this.layer.draw();
   },
 
   moveTo: function(position) {
-    this.model.set({position: position});
+    this.group.setPosition(position);
+    this.layer.draw();
   },
 
   clearTimeouts: function() {

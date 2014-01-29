@@ -260,41 +260,82 @@ var CanvasView = Backbone.View.extend({
         var offset = self.dragData.get('offset');
         var position = {x: event.offsetX - offset.x,
                         y: event.offsetY - offset.y};
-
         var sketch = self.dragData.get('sketch');
         if (sketch.model && sketch.model.get('type') == 'node') {
-          sketch.moveTo(position);
+          var nodeOffset = self.dragData.get('nodeOffset');
+          var nodePosition = {  x: event.offsetX - nodeOffset.x,
+                                y: event.offsetY - nodeOffset.y};
+
           // look for intersections
+          var moveNode = true;
           for (var i = 0; i < self.sketches.length; i++) {
             var s = self.sketches[i];
             var otherModel = s.model;
             if (otherModel.get('type') != 'node' || 
                 otherModel.get('name') == sketch.model.get('name'))
               continue;
+            console.log('move');
 
             // check if the current mouse location overlaps with node
             // if so, show the comparison
             // otherwise, hide the comparison and update the position
             // check for node intersection
-            if (s.nodeIntersects(position)) {
-              if (s.showComparison(sketch, true))  {
+            if (s.intersectsNode(nodePosition)) {
+              moveNode = false;
+              if (s.showComparison(sketch))  {
                 var step = new Compare({
-                  a: sketch.model,
-                  b: s.model,
-                  aSketch: sketch,
-                  bSketch: s
+                  drag: sketch.model,
+                  against: s.model,
+                  dragSketch: sketch,
+                  againstSketch: s
                 });
                 sketch.model.trigger('step', {step: step});
               }
+            // otherwise, check for end-of-pointer intersection
+            // this shouldn't come up if there's a node at the end of the pointer (intersectsNode)
+            } else if (s.intersectsHead(nodePosition)) {
+              moveNode = false;
+              s.hideFollow();
+              var side = s.intersectsHead(nodePosition);
+              // preview the insertion
+              if (sketch.showInsertion(s, side)) {
+                console.log("showInsertion");
+                // trigger the step
+                var step = new NodeInsert({
+                  parent: s.model,
+                  side: side,
+                  child: sketch.model
+                });
+                self.dragData.set({step: step});
+              }
+            // lastly, check for pointer intersection
+            } else if (s.intersectsPointer(nodePosition)) {
+              moveNode = false;
+              var side = s.intersectsPointer(nodePosition);
+              if (s.showFollow(sketch, side)) {
+                var step = new Follow({
+                  drag: sketch.model,
+                  from: s.model,
+                  side: side,
+                  dragSketch: sketch,
+                  fromSketch: s
+                });
+                sketch.model.trigger('step', {step: step});
+              }
+            // if the dragged node doesn't overlap anything in the candidate node, then hide any changes
             } else {
-              s.hideComparison(true);
+              s.hideComparison();
+              s.hideFollow();
             }
-            // otherwise, check for pointer intersection
-            // lastly, check for end-of-pointer intersection
           }
+          if (moveNode) {
+            sketch.moveTo(position);
+            if (sketch.hideInsertion())
+              self.dragData.set({step: null});
+          }
+          
         } else {
-          sketch.setPosition(position);
-          self.layer.draw();
+          sketch.moveTo(position);
         }
       } else if (self.selecting) {
         var current = {
@@ -323,7 +364,11 @@ var CanvasView = Backbone.View.extend({
 
         var sketch = self.dragData.get('sketch');
         if (sketch.model && sketch.model.get('type') == "node") {
-          sketch.moveTo(position);
+          sketch.hideInsertion(true);
+          if (self.dragData.get('step') != null)
+            self.steps.trigger('step', {step:self.dragData.get('step')});
+          else
+            sketch.model.set({position: position});
         } else {
           sketch.destroy();
           var name;
@@ -435,7 +480,7 @@ var CanvasView = Backbone.View.extend({
         sketch.render();
         break;
       case "node":
-        var sketch = new BinaryNodeSketch({model: datum, layer: self.layer, globals: self.globals, dragData: self.dragData});
+        var sketch = new BinaryNodeSketch({model: datum, layer: self.layer, globals: self.globals, dragData: self.dragData, canvas: self});
         self.sketches.push(sketch);
         sketch.render();
         break;
@@ -636,6 +681,8 @@ var StepsView = Backbone.View.extend({
     }
     if (traceStep == undefined) traceStep = this.trace.last();
 
+    console.log("");
+    console.log("updating from trace");
     var ordered_globals = traceStep.get('ordered_globals');
     var globals = traceStep.get('globals');
     var heap = traceStep.get('heap');
@@ -652,6 +699,12 @@ var StepsView = Backbone.View.extend({
       if (isArray(value) && value[0] == "REF")
         heapMap[value[1]] = datum;
     }
+
+    // clear the parents of nodes
+    this.data.each(function(datum) {
+      if (datum.get('type') == 'node')
+        datum.set({parent: null});
+    });
 
     // update the data values (should trigger re-rendering)
     for (var i = 0; i < ordered_globals.length; i++) {
@@ -691,12 +744,17 @@ var StepsView = Backbone.View.extend({
             var attrName = attr[0];
             var attrValue = attr[1];
             if (isArray(attrValue)) {
+              // pointer from one node to another
+              // attrName should be left or right
               attrValue = heapMap[attrValue[1]];
               values[attrName] = attrValue;
+              console.log("setting parent of " + attrValue.get("name") + " to " + datum.get('name'));
+              attrValue.set({parent: datum}, {silent: true});
             } else if (isPrimitiveType(attrValue)) {
               values[attrName] = attrValue;
             }
           });
+          console.log("setting data for " + datum.get("name"));
           datum.set(values);
           datum.trigger('change');
         }
@@ -714,15 +772,24 @@ var StepsView = Backbone.View.extend({
 
     // update comparisons
     this.steps.each(function(step, index) {
-      if (step.get('action') == 'compare') {
-        var datum = step.get('b');
-        if (index == self.activeStep.get('line')-1) {
-          datum.trigger('showComparison', step.get('aSketch'));
-        } else if (index < self.activeStep.get('line')-1) {
-          datum.trigger('hideComparison');
-        }
-      }
+      if (step.get('action') == 'compare' &&
+          index != self.activeStep.get('line')-1)
+          step.get('against').trigger('hideComparison');
     });
+    var step = this.activeStep.get('step');
+    if (step.get('action') == 'compare')
+      step.get('against').trigger('showComparison', step.get('dragSketch'));
+    
+    // update follows
+    this.steps.each(function(step, index) {
+      if (step.get('action') == 'follow' &&
+          index != self.activeStep.get('line')-1)
+          step.get('from').trigger('hideFollow');
+    });
+    var step = this.activeStep.get('step');
+    if (step.get('action') == 'follow')
+      step.get('from').trigger('showFollow', step.get('dragSketch'), step.get('side'));
+    
   },
   
   // render steps

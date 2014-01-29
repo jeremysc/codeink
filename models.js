@@ -50,6 +50,7 @@ var DragData = Datum.extend({
       expr: null,
       sketch: null,
       offset: null,
+      nodeOffset: null,
       step: null,
       src: null,
       value: null,
@@ -116,7 +117,8 @@ var BinaryNode = Datum.extend({
       type: "node",
       value: 1,
       left: null,
-      right: null
+      right: null,
+      parent: null
     };
   },
 
@@ -299,7 +301,8 @@ var Assignment = Step.extend({
       'english': ['set ', 'variable', ' to ', 'value']
     },
     variable: null,
-    value: null
+    value: null,
+    position: {x: 0, y: 0}
   }
 });
 
@@ -377,13 +380,43 @@ var Compare = Step.extend({
     action: 'compare',
     indent: 0,
     parts: {
-      'python': ['# compare ', 'a', ' with ', 'b'],
-      'english': ['# compare ', 'a', ' with ', 'b'],
+      'python': ['# compare ', 'drag', ' with ', 'against'],
+      'english': ['# compare ', 'drag', ' with ', 'against'],
     },
-    a: null,
-    b: null,
-    aSketch: null,
-    bSketch: null,
+    drag: null,
+    against: null,
+    dragSketch: null,
+    againstSketch: null,
+  }
+});
+
+var Follow = Step.extend({
+  defaults: {
+    action: 'follow',
+    indent: 0,
+    parts: {
+      'python': ['# follow ', 'from', ' to ', 'side'],
+      'english': ['# follow ', 'from', ' to ', 'side'],
+    },
+    drag: null,
+    from: null,
+    side: false,
+    dragSketch: null,
+    fromSketch: null,
+  }
+});
+
+var NodeInsert = Step.extend({
+  defaults: {
+    action: 'nodeInsert',
+    indent: 0,
+    parts: {
+      'python': ['parent', '.', 'side', ' = ', 'child'],
+      'english': ['insert ', 'child', ' at ', 'parent', '.', 'side']
+    },
+    parent: null,
+    side: "left",
+    child: null,
   }
 });
 
