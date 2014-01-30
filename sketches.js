@@ -556,6 +556,21 @@ var BinaryNodeSketch = DatumSketch.extend({
       position = this.model.get('position');
     }
     this.group.setPosition(position);
+    
+    var label = new Kinetic.Label({
+      y: -30,
+      opacity: 0.75
+    });
+    label.add(new Kinetic.Tag({
+    }));
+    label.add(new Kinetic.Text({
+      text: this.model.getSymbol(),
+      fontFamily: 'Helvetica',
+      fontSize: 18,
+      padding: 5,
+      fill: 'black'
+    }));
+    this.group.add(label);
 
     if (!this.comparing) {
       // draw the node and pointers (hidden)
@@ -700,7 +715,7 @@ var BinaryNodeSketch = DatumSketch.extend({
       y: node_dim
     };
     var pointerHeight = 100;
-    var pointerWidth = pointerHeight *0.6;
+    var pointerWidth = pointerHeight*0.75;
     this.leftLine = new Kinetic.Line({
       points: [
         pointerRoot.x, pointerRoot.y,

@@ -275,10 +275,6 @@ var CanvasView = Backbone.View.extend({
                 otherModel.get('name') == sketch.model.get('name'))
               continue;
 
-            // check if the current mouse location overlaps with node
-            // if so, show the comparison
-            // otherwise, hide the comparison and update the position
-            // check for node intersection
             if (s.intersectsNode(nodePosition)) {
               moveNode = false;
               if (s.showComparison(sketch))  {
@@ -333,7 +329,8 @@ var CanvasView = Backbone.View.extend({
           }
           
         } else {
-          sketch.moveTo(position);
+          sketch.setPosition(position);
+          self.layer.draw();
         }
       } else if (self.selecting) {
         var current = {
