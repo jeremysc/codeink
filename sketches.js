@@ -310,7 +310,7 @@ var BinaryNodeSketch = DatumSketch.extend({
 
   initialize: function(options) {
     var self = this;
-    _.bindAll(this, 'render', 'selectIfIntersects', 'setFill', 'intersectsNode', 'showComparison', 'hideComparison', 'intersectsPointer', 'intersectsHead', 'showFollow', 'hideFollow', 'getChildSide', 'getInsertionPoint', 'showInsertion', 'hideInsertion', 'clearTimeouts');
+    _.bindAll(this, 'render', 'selectIfIntersects', 'setFill', 'intersectsNode', 'showComparison', 'hideComparison', 'intersectsPointer', 'intersectsHead', 'showFollow', 'hideFollow', 'getChildSide', 'getInsertionPoint', 'showInsertion', 'hideInsertion', 'clearTimeouts', 'updateNeighbors');
     this.layer = options.layer;
     this.globals = options.globals;
     this.dragData = options.dragData;
@@ -471,24 +471,12 @@ var BinaryNodeSketch = DatumSketch.extend({
   },
 
   getChildSide: function(datum) {
-    var leftNode = this.model.get('left');
-    var rightNode = this.model.get('right');
-    if (leftNode != null && datum.get('name') == leftNode.get('name'))
-      return 'left';
-    else if (rightNode != null && datum.get('name') == rightNode.get('name'))
-      return 'right';
+    return this.model.getChildSide(datum);
   },
   
   getInsertionPoint: function(side) {
-    if (! isPrimitiveType(side)) {
-      var childModel = side;
-      var leftModel = this.model.get('left');
-      var rightModel = this.model.get('right');
-      if (leftModel != null && childModel.get("name") == leftModel.get("name"))
-        side = 'left';
-      else if (rightModel != null)
-        side = 'right';
-    }
+    if (! isPrimitiveType(side))
+      side = this.getChildSide(side);
     var groupPosition = this.group.getPosition();
     var head = (side == 'left') ? this.leftHead : this.rightHead;
     var adjust = (side == 'left') ? -node_dim/2 - 15 : -5;
@@ -537,6 +525,24 @@ var BinaryNodeSketch = DatumSketch.extend({
       this.render();
     return true;
   },
+
+  updateNeighbors: function() {
+    if (this.model.get('left') != null) {
+      this.left = this.canvas.getSketch(this.model.get('left'));
+    } else {
+      this.left = null;
+    }
+    if (this.model.get('right') != null) {
+      this.right = this.canvas.getSketch(this.model.get('right'));
+    } else {
+      this.right = null;
+    }
+    if (this.model.get('parent') != null) {
+      this.parent = this.canvas.getSketch(this.model.get('parent'));
+    } else {
+      this.parent = null;
+    }
+  },
   
   render: function() {
     var self = this;
@@ -550,19 +556,16 @@ var BinaryNodeSketch = DatumSketch.extend({
       this.layer.draw();
       return;
     }
-    
+
     // Update the group's position
     var position;
     if (this.previewSide != null) {
       position = this.parent.getInsertionPoint(this.previewSide); 
-    } else if (this.model.get('parent') != null) {
-      var parentDatum = this.model.get('parent');
-      this.parent = this.canvas.getSketch(parentDatum);
-      position = this.parent.getInsertionPoint(this.model); 
     } else {
-      position = this.model.get('position');
-      this.parent = null;
+      this.updateNeighbors();
+      position = (this.parent != null) ? this.parent.getInsertionPoint(this.model) : this.model.get('position');
     }
+
     this.group.setPosition(position);
     
     var label = new Kinetic.Label({
@@ -769,9 +772,15 @@ var BinaryNodeSketch = DatumSketch.extend({
     this.layer.draw();
   },
 
-  moveTo: function(position) {
+  moveTo: function(position, silent) {
     this.group.setPosition(position);
-    this.layer.draw();
+    if (this.left != null)
+      this.left.moveTo(this.getInsertionPoint('left'), true);
+    if (this.right != null)
+      this.right.moveTo(this.getInsertionPoint('right'), true);
+
+    if (silent != undefined || !silent)
+      this.layer.draw();
   },
 
   clearTimeouts: function() {

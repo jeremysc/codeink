@@ -124,6 +124,16 @@ var BinaryNode = Datum.extend({
 
   getValue: function() {
     return this.get('value');
+  },
+
+  getChildSide: function(child) {
+    var leftNode = this.get('left');
+    var rightNode = this.get('right');
+    if (leftNode != null && child.get('name') == leftNode.get('name'))
+      return 'left';
+    else if (rightNode != null && child.get('name') == rightNode.get('name'))
+      return 'right';
+    return null;
   }
 });
 

@@ -736,7 +736,7 @@ var StepsView = Backbone.View.extend({
     // clear the pointers nodes, updated through trace
     this.data.each(function(datum) {
       if (datum.get('type') == 'node')
-        datum.set({parent: null, left: null, right: null}, {silent: true});
+        datum.set({parent: null, left: null, right: null});
     });
 
     // update the data values (should trigger re-rendering)
@@ -749,11 +749,11 @@ var StepsView = Backbone.View.extend({
         var value = globals[name];
         // numbers and lists of numbers only for now
         if (isPrimitiveType(value) && datum.get('type') == 'num') {
-          datum.set({value: value}, {silent: true});
+          datum.set({value: value});
           datum.trigger('change');
         } else if (isPrimitiveType(value) && datum.get('type') == 'bool') {
           var boolVal = value ? "True" : "False";
-          datum.set({value: boolVal}, {silent: true});
+          datum.set({value: boolVal});
           datum.trigger('change');
         } else if (isArray(value) && datum.get('type') == 'list') {
           var refNumber = value[1];
@@ -765,9 +765,11 @@ var StepsView = Backbone.View.extend({
             console.log(traceStep.toJSON());
             continue;
           }
-          datum.set({values: values}, {silent: true});
+          datum.set({values: values});
           datum.trigger('change');
         } else if (isArray(value) && datum.get('type') == 'node') {
+          if (name == 'node1')
+            console.log(traceStep.toJSON());
           var refNumber = value[1];
           var attrs = heap[refNumber];
           var values = {};
@@ -788,14 +790,13 @@ var StepsView = Backbone.View.extend({
             }
           });
           //console.log("setting data for " + datum.get("name"));
-          datum.set(values, {silent: true});
+          datum.set(values);
+          if (name == 'node2')
+            console.log(datum.toJSON());
+          datum.trigger('change');
         }
       }
     }
-    this.data.each(function(datum) {
-      if (datum.get('type') == 'node')
-        datum.trigger('change');
-    });
     // update fill colors
     this.steps.each(function(step, index) {
       if (index <= line-1 && step.get('action') == 'fill') {
