@@ -1,0 +1,13 @@
+Falafel Starport
+- has mappings between events and handlers
+- on mousemove look for collisions to get a pair of objects
+- event is probably a pair of objects: dragged, other object
+- is that pair a valid combination
+- callbacks are
+  - do/preview
+  - undo
+
+
+- hierarchical things
+  - register event handlers on each node in a list
+  - or have the list delegate events

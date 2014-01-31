@@ -310,7 +310,7 @@ var BinaryNodeSketch = DatumSketch.extend({
 
   initialize: function(options) {
     var self = this;
-    _.bindAll(this, 'render', 'selectIfIntersects', 'setFill', 'intersectsNode', 'showComparison', 'hideComparison', 'intersectsPointer', 'intersectsHead', 'showFollow', 'hideFollow', 'getInsertionPoint', 'showInsertion', 'hideInsertion', 'clearTimeouts');
+    _.bindAll(this, 'render', 'selectIfIntersects', 'setFill', 'intersectsNode', 'showComparison', 'hideComparison', 'intersectsPointer', 'intersectsHead', 'showFollow', 'hideFollow', 'getChildSide', 'getInsertionPoint', 'showInsertion', 'hideInsertion', 'clearTimeouts');
     this.layer = options.layer;
     this.globals = options.globals;
     this.dragData = options.dragData;
@@ -469,6 +469,15 @@ var BinaryNodeSketch = DatumSketch.extend({
     
     return false;
   },
+
+  getChildSide: function(datum) {
+    var leftNode = this.model.get('left');
+    var rightNode = this.model.get('right');
+    if (leftNode != null && datum.get('name') == leftNode.get('name'))
+      return 'left';
+    else if (rightNode != null && datum.get('name') == rightNode.get('name'))
+      return 'right';
+  },
   
   getInsertionPoint: function(side) {
     if (! isPrimitiveType(side)) {
@@ -547,13 +556,12 @@ var BinaryNodeSketch = DatumSketch.extend({
     if (this.previewSide != null) {
       position = this.parent.getInsertionPoint(this.previewSide); 
     } else if (this.model.get('parent') != null) {
-      this.canvas.sketches.map(function(s) {
-        if (s.model.get('name') == self.model.get('parent').get('name'))
-          self.parent = s;
-      });
+      var parentDatum = this.model.get('parent');
+      this.parent = this.canvas.getSketch(parentDatum);
       position = this.parent.getInsertionPoint(this.model); 
     } else {
       position = this.model.get('position');
+      this.parent = null;
     }
     this.group.setPosition(position);
     
@@ -714,7 +722,7 @@ var BinaryNodeSketch = DatumSketch.extend({
       x: node_dim/2,
       y: node_dim
     };
-    var pointerHeight = 100;
+    var pointerHeight = 80;
     var pointerWidth = pointerHeight*0.75;
     this.leftLine = new Kinetic.Line({
       points: [

@@ -168,7 +168,7 @@ var CanvasView = Backbone.View.extend({
     this.sketches = [];
     this.activeStep = options.activeStep;
     this.state = options.state;
-    _.bindAll(this, 'handleDrop', 'render');
+    _.bindAll(this, 'handleDrop', 'render', 'getSketch');
 
     ///////////////////////////////////
     // Setup the KineticJS stage
@@ -225,6 +225,8 @@ var CanvasView = Backbone.View.extend({
     this.drawing = false;
     this.strokes = [];
 
+    // clicking on the background results in:
+    // selecting and drawing
     background.on("mousedown", function(event) {
       if (!self.selecting && self.state.selecting()) {
         self.selectStart.x = event.offsetX;
@@ -255,6 +257,11 @@ var CanvasView = Backbone.View.extend({
       } else if (self.state.filling()) {
       }
     });
+
+    // handle mouse move while:
+    // - dragging an object
+    // - selecting
+    // - drawing
     this.layer.on("mousemove", function(event) {
       if (self.dragData.get('dragging')) {
         var offset = self.dragData.get('offset');
@@ -323,15 +330,30 @@ var CanvasView = Backbone.View.extend({
             }
           }
           if (moveNode) {
-            sketch.moveTo(position);
+            // check if the node has parents
+            if (sketch.model.get('parent') != null) {
+              var parentModel = sketch.parent.model;
+              var side = sketch.parent.getChildSide(sketch.model);
+              sketch.model.set({'parent': null});
+              // trigger the detachment
+              var step = new NodeDetach({
+                parent: parentModel, 
+                side: side,
+                child: sketch.model
+              });
+              sketch.model.trigger('step', {step: step});
+            }
             if (sketch.hideInsertion())
               self.dragData.set({step: null});
+            // move the node (should move any subtrees)
+            sketch.moveTo(position);
           }
           
         } else {
           sketch.setPosition(position);
           self.layer.draw();
         }
+      // Rectangular selection
       } else if (self.selecting) {
         var current = {
           x: event.offsetX,
@@ -345,11 +367,17 @@ var CanvasView = Backbone.View.extend({
           s.selectIfIntersects(self.selectRect);
         });
         self.layer.draw();
+      // Drawing a stroke
       } else if (self.drawing) {
         self.stroke.addPoint(event.offsetX, event.offsetY);
         self.layer.draw();
       }
     });
+
+    // Handle mouse-up for
+    // - dragging an object (executing the step that has been previewed)
+    // - making a selection final
+    // - ending a drawn stroke
     $(this.container).on("mouseup", function(event) {
       if (self.dragData.get('dragging')) {
         var offset = self.dragData.get('offset');
@@ -418,6 +446,16 @@ var CanvasView = Backbone.View.extend({
       stageWidth: this.stageWidth,
       stageHeight: this.stageHeight
     });
+  },
+
+
+  // Get the sketch for a particular datum
+  getSketch: function(datum) {
+    for (var i = 0; i < this.sketches.length; i++) {
+      var sketch = this.sketches[i];
+      if (sketch.model.get('name') == datum.get('name'))
+        return sketch
+    }
   },
 
   // Handles drag-and-drop of new data objects from the palette
@@ -676,8 +714,8 @@ var StepsView = Backbone.View.extend({
     }
     if (traceStep == undefined) traceStep = this.trace.last();
 
-    console.log("");
-    console.log("updating from trace");
+    //console.log("");
+    //console.log("updating from trace");
     var ordered_globals = traceStep.get('ordered_globals');
     var globals = traceStep.get('globals');
     var heap = traceStep.get('heap');
@@ -695,10 +733,10 @@ var StepsView = Backbone.View.extend({
         heapMap[value[1]] = datum;
     }
 
-    // clear the parents of nodes
+    // clear the pointers nodes, updated through trace
     this.data.each(function(datum) {
       if (datum.get('type') == 'node')
-        datum.set({parent: null});
+        datum.set({parent: null, left: null, right: null});
     });
 
     // update the data values (should trigger re-rendering)
@@ -743,13 +781,13 @@ var StepsView = Backbone.View.extend({
               // attrName should be left or right
               attrValue = heapMap[attrValue[1]];
               values[attrName] = attrValue;
-              console.log("setting parent of " + attrValue.get("name") + " to " + datum.get('name'));
+              //console.log("setting parent of " + attrValue.get("name") + " to " + datum.get('name'));
               attrValue.set({parent: datum}, {silent: true});
             } else if (isPrimitiveType(attrValue)) {
               values[attrName] = attrValue;
             }
           });
-          console.log("setting data for " + datum.get("name"));
+          //console.log("setting data for " + datum.get("name"));
           datum.set(values);
           datum.trigger('change');
         }

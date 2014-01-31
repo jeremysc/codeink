@@ -420,3 +420,18 @@ var NodeInsert = Step.extend({
   }
 });
 
+var NodeDetach = Step.extend({
+  defaults: {
+    action: 'nodeDetach',
+    indent: 0,
+    parts: {
+      'python': ['parent', '.', 'side', ' = None'],
+      'english': ['detach ', 'child', ' from ', 'parent']
+    },
+    parent: null,
+    side: "left",
+    child: null,
+  }
+});
+
+
