@@ -113,8 +113,8 @@ var BinaryNode = Datum.extend({
   defaults: function() {
     return {
       visible: true,
-      name: "nodeA",
-      type: "node",
+      name: "binaryA",
+      type: "binary",
       value: 1,
       left: null,
       right: null,
@@ -137,6 +137,75 @@ var BinaryNode = Datum.extend({
   }
 });
 
+var Node = Datum.extend({
+  defaults: function() {
+    return {
+      visible: true,
+      name: "nodeA",
+      type: "node",
+      value: 0,
+      inbound: [],
+      edges: []
+    };
+  },
+
+  getValue: function() {
+    return this.get('value');
+  },
+
+  edgeFrom: function(edge) {
+    var edgeName = edge.getSymbol();
+    var edges = this.get('edges');
+    var already = false;
+    for (var i = 0; i < edges.length; i++) {
+      var other = edges[i];
+      if (edgeName == other.getSymbol())
+        already = true;
+    }
+    if (! already) {
+      edges.push(edge);
+      this.set({edges: edges}); 
+      return true;
+    }
+    return false;
+  },
+
+  edgeTo: function(edge) {
+    var edgeName = edge.getSymbol();
+    var edges = this.get('inbound');
+    var already = false;
+    for (var i = 0; i < edges.length; i++) {
+      var other = edges[i];
+      if (edgeName == other.getSymbol())
+        already = true;
+    }
+    if (! already) {
+      edges.push(edge);
+      this.set({inbound: edges}); 
+      return true;
+    }
+    return false;
+  }
+
+});
+
+var Edge = Datum.extend({
+  defaults: function() {
+    return {
+      visible: true,
+      name: "edgeA",
+      type: "edge",
+      weight: 0,
+      start: null,
+      end: null
+    };
+  },
+
+  getValue: function() {
+    return this.get('weight');
+  },
+});
+
 var ClassDefinitionsModel = Backbone.Model.extend({
   initialize: function() {
     this.definitions = [
@@ -145,7 +214,18 @@ var ClassDefinitionsModel = Backbone.Model.extend({
       "  def __init__(self, value, left=None):",
       "    self.value = value",
       "    self.left = left",
-      "    self.right = None"
+      "    self.right = None",
+      "",
+      "class Node:",
+      "  def __init__(self, value):",
+      "    self.value = value",
+      "    self.edges = []",
+      "",
+      "class Edge:",
+      "  def __init__(self, weight):",
+      "    self.weight = weight",
+      "    self.start = None",
+      "    self.end = None"
       ]
     ];
   },
@@ -235,17 +315,40 @@ var ListVarExpr = Expr.extend({
     };
   },
 });
-var NodeExpr = Expr.extend({
+var BinaryNodeExpr = Expr.extend({
   defaults: function() {
     return {
       value: "0",
       parts: {
         'python': ['BinaryNode(','value',')'],
+        'english': ['new binary node with value ','value']
+      }
+    };
+  },
+});
+var NodeExpr = Expr.extend({
+  defaults: function() {
+    return {
+      value: "0",
+      parts: {
+        'python': ['Node(','value',')'],
         'english': ['new node with value ','value']
       }
     };
   },
 });
+var EdgeExpr = Expr.extend({
+  defaults: function() {
+    return {
+      weight: "0",
+      parts: {
+        'python': ['Edge(','weight',')'],
+        'english': ['new edge with weight ','weight']
+      }
+    };
+  },
+});
+
 var AttrExpr = Expr.extend({
   defaults: function() {
     return {
@@ -416,9 +519,9 @@ var Follow = Step.extend({
   }
 });
 
-var NodeInsert = Step.extend({
+var BinaryNodeInsert = Step.extend({
   defaults: {
-    action: 'nodeInsert',
+    action: 'binaryNodeInsert',
     indent: 0,
     parts: {
       'python': ['parent', '.', 'side', ' = ', 'child'],
@@ -430,9 +533,23 @@ var NodeInsert = Step.extend({
   }
 });
 
-var NodeDetach = Step.extend({
+var BinaryNodeDetach = Step.extend({
   defaults: {
-    action: 'nodeDetach',
+    action: 'binaryNodeDetach',
+    indent: 0,
+    parts: {
+      'python': ['parent', '.', 'side', ' = None'],
+      'english': ['detach ', 'child', ' from ', 'parent']
+    },
+    parent: null,
+    side: "left",
+    child: null,
+  }
+});
+
+var EdgeAttach = Step.extend({
+  defaults: {
+    action: 'binaryNodeDetach',
     indent: 0,
     parts: {
       'python': ['parent', '.', 'side', ' = None'],

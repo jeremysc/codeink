@@ -11,6 +11,15 @@ function lineDistance( point1, point2 )
  
   return Math.sqrt( xs + ys );
 }
+function normal( point1, point2 )
+{
+  var distance = lineDistance(point1, point2);
+  return {
+    x: (point2.x - point1.x)/distance,
+    y: (point2.y - point1.y)/distance
+  };
+}
+
 function midpoint( point1, point2 )
 {
   return {
@@ -326,7 +335,7 @@ var BinaryNodeSketch = DatumSketch.extend({
 
     var step = new Assignment({
       variable: this.model,
-      value: new NodeExpr({value: this.model.getValue()})
+      value: new BinaryNodeExpr({value: this.model.getValue()})
     });
     this.model.trigger('step', {step: step});
 
@@ -781,6 +790,522 @@ var BinaryNodeSketch = DatumSketch.extend({
 
     if (silent != undefined || !silent)
       this.layer.draw();
+  },
+
+  clearTimeouts: function() {
+    this.timeouts.map(function(t) {
+      clearTimeout(t);
+    });
+    this.timeouts = [];
+  }
+});
+
+var NodeSketch = DatumSketch.extend({
+  model: Node,
+
+  initialize: function(options) {
+    var self = this;
+    _.bindAll(this, 'render', 'selectIfIntersects', 'setFill', 'intersectsNode', 'showComparison', 'hideComparison', 'clearTimeouts', 'updateNeighbors');
+    this.layer = options.layer;
+    this.globals = options.globals;
+    this.dragData = options.dragData;
+    this.state = options.state;
+    this.canvas = options.canvas;
+
+    this.model.on('change', this.render);
+    this.model.on('fill', this.setFill);
+    this.model.on('showComparison', this.showComparison);
+    this.model.on('hideComparison', this.hideComparison);
+
+    var step = new Assignment({
+      variable: this.model,
+      value: new NodeExpr({value: this.model.getValue()})
+    });
+    this.model.trigger('step', {step: step});
+
+    this.comparing = false;
+    this.otherNode = null;
+    this.dragNode = null;
+    this.timeouts = [];
+
+    this.edges = [];
+    this.inbound = [];
+  },
+  
+  setFill: function(options) {
+    console.log('filling');
+  },
+  
+  selectIfIntersects: function(rect) {
+  },
+  
+  pointIntersectsNode: function(dragPosition) {
+    var groupPosition = this.group.getPosition();
+    var nodePosition = this.node.getPosition();
+    nodePosition.x += groupPosition.x;
+    nodePosition.y += groupPosition.y;
+    var distance = lineDistance(dragPosition, nodePosition);
+    return distance < node_dim/2;
+  },
+
+  // check if the dragged node intersects with this one
+  intersectsNode: function(dragPosition) {
+    var groupPosition = this.group.getPosition();
+    var nodePosition = this.node.getPosition();
+    nodePosition.x += groupPosition.x;
+    nodePosition.y += groupPosition.y;
+    var distance = lineDistance(dragPosition, nodePosition);
+    return distance < node_dim;
+  },
+  
+  showComparison: function(dragSketch) {
+    if (this.comparing)
+      return false;
+    this.comparing = true;
+    this.otherNode = dragSketch;
+    this.otherNode.comparing = true;
+    this.otherNode.otherNode = null;
+    this.render();
+    this.otherNode.render();
+    return true;
+  },
+  
+  hideComparison: function(silent) {
+    if (!this.comparing)
+      return false;
+    this.comparing = false;
+    this.otherNode.comparing = false;
+    this.otherNode.otherNode = null;
+    if (silent != undefined || !silent) {
+      this.render();
+      this.otherNode.render();
+    }
+    this.otherNode = null;
+    return true;
+  },
+  
+  updateNeighbors: function() {
+    this.edges = [];
+    var edges = this.model.get('edges');
+    for (var i = 0; i < edges.length; i++) {
+      this.edges.push(this.canvas.getSketch(edges[i]));
+    }
+    this.inbound = [];
+    var inbound = this.model.get('inbound');
+    for (var i = 0; i < inbound.length; i++) {
+      this.inbound.push(this.canvas.getSketch(inbound[i]));
+    }
+  },
+  
+  render: function() {
+    var self = this;
+    if (this.group) {
+      this.group.removeChildren();
+      this.group.remove();
+    } else {
+      this.group = new Kinetic.Group({name: this.model.getSymbol()});
+    }
+    if (! this.model.get('visible') || (this.comparing && this.otherNode == null)) {
+      this.layer.draw();
+      return;
+    }
+
+    // Update the group's position
+    this.updateNeighbors();
+    var position = (this.parent != null) ? this.parent.getInsertionPoint(this.model) : this.model.get('position');
+    this.group.setPosition(position);
+    
+    var label = new Kinetic.Label({
+      y: -30,
+      opacity: 0.75
+    });
+    label.add(new Kinetic.Tag({
+    }));
+    label.add(new Kinetic.Text({
+      text: this.model.getSymbol(),
+      fontFamily: 'Helvetica',
+      fontSize: 18,
+      padding: 5,
+      fill: 'black'
+    }));
+    this.group.add(label);
+
+    if (!this.comparing) {
+      // draw the node and pointers (hidden)
+      var value = this.model.get('value');
+      this.node = new Kinetic.Circle({
+        x: node_dim/2,
+        y: node_dim/2,
+        radius: node_dim/2,
+        stroke: 'black',
+        strokeWidth: 3
+      });
+      this.text = new Kinetic.Text({
+        text: value,
+        fontFamily: 'Helvetica',
+        fontSize: 35,
+        width: node_dim,
+        height: node_dim,
+        offsetY: -10,
+        align: 'center',
+        fill: 'black'
+      });
+      this.node.on("dblclick", function() {
+        self.clearTimeouts();
+        var value = prompt('Enter new value');
+        if (value != null) {
+          self.model.set({value: value});
+          var step = new Assignment({
+            variable: new AttrExpr({object: self.model, attr: "value", value: value}),
+            value: value
+          });
+          self.model.trigger('step', {step: step});
+        }
+        return false;
+      });
+
+      var startDrag = function(event) {
+        // move current sketch to global
+        //this.moveTo(self.globals);
+        //this.setPosition(self.group.getPosition());
+
+        // get grab offset
+        var position = self.group.getPosition();
+        var offset = {x: event.offsetX - position.x,
+                      y: event.offsetY - position.y};
+        var nodeOffset = {x: offset.x - node_dim/2,
+                          y: offset.y - node_dim/2};
+        
+        self.timeouts.push(setTimeout(function() { 
+          self.dragData.set({
+            dragging: true,
+            sketch: self,
+            offset: offset,
+            nodeOffset: nodeOffset
+          });
+        }, 400, this));
+      };
+      this.node.on("mousedown", startDrag);//_.debounce(startDrag, 500));
+
+      this.group.add(this.text);
+      this.group.add(this.node);
+    } else if (this.comparing && this.otherNode != null) {
+      // group starts out at x = -node_dim/2 from center
+      var rect = new Kinetic.Rect({
+        x: -node_dim*0.75,
+        width: node_dim*2.5,
+        height: node_dim,
+        strokeWidth: 1,
+      });
+      var value = this.model.get('value');
+      var otherValue = this.otherNode.model.get('value');
+      var thisPosition, otherPosition, operator;
+      if (value < otherValue) {
+        thisPosition = {x: -node_dim/4, y: node_dim/2};
+        otherPosition = {x: node_dim*1.25, y: node_dim/2};
+        operator = "<";
+      } else {
+        otherPosition = {x: -node_dim/4, y: node_dim/2};
+        thisPosition = {x: node_dim*1.25, y: node_dim/2};
+        operator = "<";
+      }
+      if (value == otherValue)
+        operator = "=";
+      var node = new Kinetic.Circle({
+        x: thisPosition.x,
+        y: thisPosition.y,
+        radius: node_dim/2,
+        stroke: 'black',
+        strokeWidth: 3
+      });
+      var text = new Kinetic.Text({
+        x: thisPosition.x - node_dim/2,
+        text: value,
+        fontFamily: 'Helvetica',
+        fontSize: 35,
+        width: node_dim,
+        height: node_dim,
+        offsetY: -10,
+        align: 'center',
+        fill: 'black'
+      });
+
+      var nodeOther = new Kinetic.Circle({
+        x: otherPosition.x,
+        y: otherPosition.y,
+        radius: node_dim/2,
+        stroke: 'black',
+        strokeWidth: 3
+      });
+      var textOther = new Kinetic.Text({
+        x: otherPosition.x - node_dim/2,
+        text: otherValue,
+        fontFamily: 'Helvetica',
+        fontSize: 35,
+        width: node_dim,
+        height: node_dim,
+        offsetY: -10,
+        align: 'center',
+        fill: 'black'
+      });
+
+      var textOperator = new Kinetic.Text({
+        text: operator,
+        fontFamily: 'Helvetica',
+        fontSize: 35,
+        width: node_dim,
+        height: node_dim,
+        offsetY: -10,
+        align: 'center',
+        fill: 'black'
+      });
+      this.group.add(rect);
+      this.group.add(node);
+      this.group.add(text);
+      this.group.add(nodeOther);
+      this.group.add(textOther);
+      this.group.add(textOperator);
+    }
+
+    this.layer.add(this.group);
+    this.layer.draw();
+  },
+
+  moveTo: function(position, silent) {
+    this.group.setPosition(position);
+    for (var i = 0; i < this.edges.length; i++) {
+      var edge = this.edges[i];
+      edge.shiftFrom(position, true);
+    }
+    for (var i = 0; i < this.inbound.length; i++) {
+      var inbound = this.inbound[i];
+      inbound.shiftTo(position, true);
+    }
+
+    if (silent != undefined || !silent)
+      this.layer.draw();
+  },
+
+  clearTimeouts: function() {
+    this.timeouts.map(function(t) {
+      clearTimeout(t);
+    });
+    this.timeouts = [];
+  }
+});
+
+var EdgeSketch = DatumSketch.extend({
+  model: Node,
+
+  initialize: function(options) {
+    var self = this;
+    _.bindAll(this, 'render', 'selectIfIntersects', 'setFill', 'clearTimeouts', 'updateNeighbors', 'showAttachment', 'hideAttachment');
+    this.layer = options.layer;
+    this.globals = options.globals;
+    this.dragData = options.dragData;
+    this.state = options.state;
+    this.canvas = options.canvas;
+
+    this.model.on('change', this.render);
+    this.model.on('fill', this.setFill);
+
+    var step = new Assignment({
+      variable: this.model,
+      value: new EdgeExpr({weight: this.model.getValue()})
+    });
+    this.model.trigger('step', {step: step});
+
+    this.timeouts = [];
+
+    this.start = null; 
+    this.end = null; 
+    this.previewSide = null;
+
+    this.edgeLength = 150;
+    this.startPosition = {x: 0, y: 0};
+    this.endPosition = {x: this.edgeLength, y: 0};
+  },
+  
+  setFill: function(options) {
+    console.log('filling');
+  },
+  
+  selectIfIntersects: function(rect) {
+  },
+
+  showAttachment: function(node, side) {
+    if (this.previewSide == side)
+      return false;
+
+    if (side == 'start' && this.start == null) {
+      this.previewSide = 'start';
+      this.start = node;
+      this.render();
+      return true;
+    } else if (side == 'end' && this.end == null) {
+      this.previewSide = 'end';
+      this.end = node;
+      this.render();
+      return true;
+    } else {
+      return false;
+    }
+  },
+  
+  hideAttachment: function() {
+    if (this.previewSide == 'start') {
+      this.previewSide = null;
+      this.start = null;
+      this.render();
+      return true;
+    } else if (this.previewSide == 'end') {
+      this.previewSide = null;
+      this.end = null;
+      this.render();
+      return true;
+    } else {
+      return false;
+    }
+  },
+
+  updateNeighbors: function() {
+    var startNode = this.model.get('start');
+    this.start = (startNode == null) ? null : this.canvas.getSketch(startNode);
+    var endNode = this.model.get('end');
+    this.end = (endNode == null) ? null : this.canvas.getSketch(endNode);
+  },
+  
+  render: function() {
+    var self = this;
+    if (this.group) {
+      this.group.removeChildren();
+      this.group.remove();
+    } else {
+      this.group = new Kinetic.Group({name: this.model.getSymbol()});
+    }
+    if (! this.model.get('visible')) {
+      this.layer.draw();
+      return;
+    }
+
+    // Update the group's position
+    if (this.previewSide == null)
+      this.updateNeighbors();
+    var groupPosition;
+    if (this.start == null) {
+      groupPosition = this.model.get('position');
+    } else {
+      groupPosition = this.start.group.getPosition();
+      groupPosition.x += node_dim/2;
+      groupPosition.y += node_dim/2;
+    }
+
+    var localEnd;
+    if (this.end == null) {
+      localEnd = {x: this.edgeLength, y: 0};
+    } else {
+      var globalEnd = this.end.group.getPosition();
+      localEnd = {x: globalEnd.x - groupPosition.x, y: globalEnd.y - groupPosition.y};
+    }
+
+    var edgeNormal = normal({x: 0, y:0}, localEnd);
+    this.endPosition = {x: localEnd.x - edgeNormal.x * node_dim/2, y: localEnd.y - edgeNormal.y * node_dim/2};
+    this.startPosition = {x: edgeNormal.x*node_dim/2, y: edgeNormal.y*node_dim/2};
+
+    this.group.setPosition(groupPosition);
+
+    var label = new Kinetic.Label({
+      x: midpoint(this.startPosition, this.endPosition).x,
+      y: -30,
+      opacity: 0.75
+    });
+    label.add(new Kinetic.Tag({
+    }));
+    label.add(new Kinetic.Text({
+      text: this.model.getValue(),
+      fontFamily: 'Helvetica',
+      fontSize: 18,
+      padding: 5,
+      fill: 'black'
+    }));
+    this.group.add(label);
+
+    // draw the pointer
+    this.line = new Kinetic.Line({
+      points: [
+        this.startPosition.x, this.startPosition.y,
+        this.endPosition.x, this.endPosition.y
+        ],
+      strokeWidth: 3
+    });
+    this.handle = new Kinetic.Circle({
+      x: this.startPosition.x,
+      y: this.startPosition.y,
+      radius: 5,
+      fill: 'black'
+    });
+    this.handle.on("mouseenter", function() {
+      this.setRadius(10);
+      this.setFill('#46b6ec');
+      self.layer.draw();
+    });
+    this.handle.on("mouseleave", function() {
+      this.setRadius(5);
+      this.setFill('black');
+      self.layer.draw();
+    });
+    this.handle.on("mousedown", function() {
+      self.dragData.set({
+        dragging: true,
+        sketch: self,
+        side: 'start',
+        offset: {x: 0, y: 0}
+      });
+    });
+    this.head = new Kinetic.RegularPolygon({
+      x: this.endPosition.x,
+      y: this.endPosition.y,
+      sides: 3,
+      radius: 8,
+      fill: 'black',
+      stroke: 'black',
+      strokeWidth: 3,
+      lineJoin: 'round',
+      rotationDeg: -30,
+    });
+    this.head.on("mouseenter", function() {
+      this.setRadius(10);
+      this.setFill('#46b6ec');
+      this.setStroke('#46b6ec');
+      self.layer.draw();
+    });
+    this.head.on("mouseleave", function() {
+      this.setRadius(5);
+      this.setFill('black');
+      this.setStroke('black');
+      self.layer.draw();
+    });
+    this.head.on("mousedown", function() {
+      self.dragData.set({
+        dragging: true,
+        sketch: self,
+        side: 'end',
+        offset: {x: 0, y: 0}
+      });
+    });
+    this.group.add(this.line);
+    this.group.add(this.head);
+    this.group.add(this.handle);
+
+    this.layer.add(this.group);
+    this.layer.draw();
+  },
+
+  shiftFrom: function(position, silent) {
+    this.render();
+  },
+  shiftTo: function(position, silent) {
+    this.render();
   },
 
   clearTimeouts: function() {

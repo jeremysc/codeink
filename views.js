@@ -268,7 +268,7 @@ var CanvasView = Backbone.View.extend({
         var position = {x: event.offsetX - offset.x,
                         y: event.offsetY - offset.y};
         var sketch = self.dragData.get('sketch');
-        if (sketch.model && sketch.model.get('type') == 'node') {
+        if (sketch.model && sketch.model.get('type') == 'binary') {
           var nodeOffset = self.dragData.get('nodeOffset');
           var nodePosition = {  x: event.offsetX - nodeOffset.x,
                                 y: event.offsetY - nodeOffset.y};
@@ -278,7 +278,7 @@ var CanvasView = Backbone.View.extend({
           for (var i = 0; i < self.sketches.length; i++) {
             var s = self.sketches[i];
             var otherModel = s.model;
-            if (otherModel.get('type') != 'node' || 
+            if (otherModel.get('type') != 'binary' || 
                 otherModel.get('name') == sketch.model.get('name'))
               continue;
 
@@ -302,7 +302,7 @@ var CanvasView = Backbone.View.extend({
               // preview the insertion
               if (sketch.showInsertion(s, side)) {
                 // trigger the step
-                var step = new NodeInsert({
+                var step = new BinaryNodeInsert({
                   parent: s.model,
                   side: side,
                   child: sketch.model
@@ -336,7 +336,7 @@ var CanvasView = Backbone.View.extend({
               var side = sketch.parent.getChildSide(sketch.model);
               sketch.model.set({'parent': null});
               // trigger the detachment
-              var step = new NodeDetach({
+              var step = new BinaryNodeDetach({
                 parent: parentModel, 
                 side: side,
                 child: sketch.model
@@ -348,7 +348,35 @@ var CanvasView = Backbone.View.extend({
             // move the node (should move any subtrees)
             sketch.moveTo(position);
           }
-          
+        // TYPE: NODE
+        } else if (sketch.model && sketch.model.get('type') == 'edge') {
+          // look for intersections
+          var moveEdge = true;
+          var side = self.dragData.get('side');
+          for (var i = 0; i < self.sketches.length; i++) {
+            var s = self.sketches[i];
+            var otherModel = s.model;
+            if (otherModel.get('type') != 'node')
+              continue;
+
+            if (s.pointIntersectsNode(position)) {
+              moveEdge = false;
+              if (sketch.showAttachment(s, side)) {
+                /*
+                var step = new EdgeAttachment({
+                  parent: s.model,
+                  side: side,
+                  child: sketch.model
+                });
+                self.dragData.set({step: step});
+                */
+              }
+            }
+          }
+          if (moveEdge) {
+            sketch.render();
+            sketch.hideAttachment();
+          }
         } else {
           sketch.setPosition(position);
           self.layer.draw();
@@ -386,11 +414,14 @@ var CanvasView = Backbone.View.extend({
                         y: event.offsetY - offset.y};
 
         var sketch = self.dragData.get('sketch');
-        if (sketch.model && sketch.model.get('type') == "node") {
+        if (sketch.model && sketch.model.get('type') == "binary") {
           sketch.hideInsertion(true);
           if (self.dragData.get('step') != null)
             self.steps.trigger('step', {step:self.dragData.get('step')});
           else
+            sketch.model.set({position: position});
+        } else if (sketch.model && sketch.model.get('type') == "edge") {
+          if (self.dragData.get('side') == 'start')
             sketch.model.set({position: position});
         } else {
           sketch.destroy();
@@ -486,8 +517,20 @@ var CanvasView = Backbone.View.extend({
           position: position
         }));
         break;
-      case "node":
+      case "binary":
         this.data.add(new BinaryNode({
+          name: name,
+          position: position
+        }));
+        break;
+      case "node":
+        this.data.add(new Node({
+          name: name,
+          position: position
+        }));
+        break;
+      case "edge":
+        this.data.add(new Edge({
           name: name,
           position: position
         }));
@@ -512,8 +555,18 @@ var CanvasView = Backbone.View.extend({
         self.sketches.push(sketch);
         sketch.render();
         break;
-      case "node":
+      case "binary":
         var sketch = new BinaryNodeSketch({model: datum, layer: self.layer, globals: self.globals, dragData: self.dragData, canvas: self});
+        self.sketches.push(sketch);
+        sketch.render();
+        break;
+      case "node":
+        var sketch = new NodeSketch({model: datum, layer: self.layer, globals: self.globals, dragData: self.dragData, canvas: self});
+        self.sketches.push(sketch);
+        sketch.render();
+        break;
+      case "edge":
+        var sketch = new EdgeSketch({model: datum, layer: self.layer, globals: self.globals, dragData: self.dragData, canvas: self});
         self.sketches.push(sketch);
         sketch.render();
         break;
@@ -674,9 +727,8 @@ var StepsView = Backbone.View.extend({
     user_script += this.steps.map(function(step) {return step.toCode();}).join("\n");
     /*
     var scriptLines = user_script.split('\n');
-    for (var i = 0; i < scriptLines.length; i++) {
+    for (var i = 0; i < scriptLines.length; i++)
       console.log((i+1) + ": " + scriptLines[i]);
-    }
     */
 
     $.get(backend_script,
@@ -735,7 +787,7 @@ var StepsView = Backbone.View.extend({
 
     // clear the pointers nodes, updated through trace
     this.data.each(function(datum) {
-      if (datum.get('type') == 'node')
+      if (datum.get('type') == 'binary')
         datum.set({parent: null, left: null, right: null}, {silent: true});
     });
 
@@ -767,7 +819,7 @@ var StepsView = Backbone.View.extend({
           }
           datum.set({values: values}, {silent: true});
           datum.trigger('change');
-        } else if (isArray(value) && datum.get('type') == 'node') {
+        } else if (isArray(value) && datum.get('type') == 'binary') {
           var refNumber = value[1];
           var attrs = heap[refNumber];
           var values = {};
@@ -793,7 +845,7 @@ var StepsView = Backbone.View.extend({
       }
     }
     this.data.each(function(datum) {
-      if (datum.get('type') == 'node')
+      if (datum.get('type') == 'binary')
         datum.trigger('change');
     });
     // update fill colors
