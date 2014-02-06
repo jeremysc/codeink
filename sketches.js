@@ -124,14 +124,15 @@ var NumberSketch = DatumSketch.extend({
       x: position.x,
       y: position.y
     });
-    if (self.model.getValue() == null) {
+
+    if (self.model.getValue() == null)
       self.model.set({value: 0});
-      var step = new Assignment({
-        variable: self.model,
-        value: self.model.getValue()
-      });
-      self.model.trigger('step', {step: step});
-    }
+
+    var step = new Assignment({
+      variable: self.model,
+      value: self.model.getValue()
+    });
+    self.model.trigger('step', {step: step});
 
     this.group.on("dragend", function(event) {
       self.model.set({position: this.getPosition()});
@@ -599,7 +600,7 @@ var BinaryNodeSketch = DatumSketch.extend({
         x: node_dim/2,
         y: node_dim/2,
         radius: node_dim/2,
-        stroke: 'black',
+        stroke: (this.previewSide != null) ? '#46b6ec' : 'black',
         strokeWidth: 3
       });
       this.text = new Kinetic.Text({
@@ -696,7 +697,7 @@ var BinaryNodeSketch = DatumSketch.extend({
         x: otherPosition.x,
         y: otherPosition.y,
         radius: node_dim/2,
-        stroke: 'black',
+        stroke: '#46b6ec',
         strokeWidth: 3
       });
       var textOther = new Kinetic.Text({
@@ -742,6 +743,7 @@ var BinaryNodeSketch = DatumSketch.extend({
         pointerRoot.x - pointerWidth, pointerRoot.y + pointerHeight
         ],
       strokeWidth: (this.following && this.followSide == "left") ? 6 : 3,
+      stroke: (this.following && this.followSide == "left") ? '#46b6ec' : 'black'
     });
     this.leftHead = new Kinetic.RegularPolygon({
       x: pointerRoot.x - pointerWidth,
@@ -760,6 +762,7 @@ var BinaryNodeSketch = DatumSketch.extend({
         pointerRoot.x + pointerWidth, pointerRoot.y +pointerHeight 
         ],
       strokeWidth: (this.following && this.followSide == "right") ? 6 : 3,
+      stroke: (this.following && this.followSide == "right") ? '#46b6ec' : 'black'
     });
     this.rightHead = new Kinetic.RegularPolygon({
       x: pointerRoot.x + pointerWidth,

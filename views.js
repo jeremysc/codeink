@@ -425,30 +425,40 @@ var CanvasView = Backbone.View.extend({
             sketch.model.set({position: position});
         } else {
           sketch.destroy();
-          var name;
-          for (var i = 1; i <= 40; i++) {
-            name = 'list'+i;
-            var datum = self.data.findWhere({name: name});
-            if (datum == null)
-              break;
-          }
           if (self.dragData.get('step') != null) {
             self.steps.trigger('step', {step:self.dragData.get('step')});
           } else {
             var dragExpr = self.dragData.get('expr');
             var dragValues = self.dragData.get('value');
-            if (dragValues.length <= 1) {
-              dragExpr = new NewListExpr({
-                value: dragExpr
-              });
+            if (isArray(dragValues)) {
+              var name;
+              for (var i = 1; i <= 40; i++) {
+                name = 'list'+i;
+                var datum = self.data.findWhere({name: name});
+                if (datum == null)
+                  break;
+              }
+              self.data.add(new List({
+                name: name,
+                initialized: true,
+                position: position,
+                values: dragValues,
+                expr: dragExpr
+              }));
+            } else {
+              var name;
+              for (var i = 1; i <= 40; i++) {
+                name = 'num'+i;
+                var datum = self.data.findWhere({name: name});
+                if (datum == null)
+                  break;
+              }
+              self.data.add(new Number({
+                name: name,
+                position: position,
+                value: dragValues
+              }));
             }
-            self.data.add(new List({
-              name: name,
-              initialized: true,
-              position: position,
-              values: dragValues,
-              expr: dragExpr
-            }));
           }
         }
         self.dragData.set(self.dragData.defaults());
