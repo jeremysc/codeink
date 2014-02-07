@@ -32,14 +32,16 @@
 
   <div id="main">
     <div class="row">
-      <div id="left-pane" class="col-xs-3">
+      <div class="col-xs-2">
         <div id="palette">
         </div>
+      </div>
+      <div id="right-pane" class="col-xs-7">
+        <div id="stage"></div>
+      </div>
+      <div class="col-xs-3">
         <div id="steps">
         </div>
-      </div>
-      <div id="right-pane" class="col-xs-9">
-        <div id="stage"></div>
       </div>
     </div>    
   </div>
@@ -50,22 +52,26 @@
     <h3>tools</h3>
     <div id="tools" class="btn-group">
       <button id="select" type="button" class="btn btn-md btn-primary">select</button>
-      <button id="draw" type="button" class="btn btn-md btn-default">draw</button>
+      <button id="draw" type="button" class="btn btn-md btn-default">pen</button>
       <button id="fill" type="button" class="btn btn-md btn-default">fill</button>
     </div>
-    <div class="input-group color" data-color="#79c2f7">
+    <div id="color-picker" class="input-group color" data-color="#79c2f7">
       <input type="text" class="form-control" value="#79c2f7">
       <span class="input-group-addon"><i></i></span>
     </div>
   </div>    
   <div id="data">
     <h3>data <small>drag onto canvas</small></h3>
-    <button id="num" class="btn btn-md btn-primary add-data" type="button" draggable="true">number</button>
-    <button id="list" class="btn btn-md btn-primary add-data" type="button" draggable="true">list</button>
-    <button id="binary" class="btn btn-md btn-primary add-data" type="button" draggable="true">binary node</button>
-    <br/>
+    <div class="row"><div class="col-xs-12">
+      <button id="num" class="btn btn-md btn-primary add-data" type="button" draggable="true">number</button>
+    </div></div>
+    <div class="row"><div class="col-xs-12">
+      <button id="list" class="btn btn-md btn-primary add-data" type="button" draggable="true">list</button>
+    </div></div>
+    <div class="row"><div class="col-xs-12">
+      <button id="binary" class="btn btn-md btn-primary add-data" type="button" draggable="true">binary node</button>
+    </div></div>
     <!--
-
     <button id="node" class="btn btn-md btn-primary add-data" type="button" draggable="true">node</button>
     <button id="edge" class="btn btn-md btn-primary add-data" type="button" draggable="true">edge</button>
     -->

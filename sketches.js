@@ -78,7 +78,7 @@ function getGroupRect(group) {
 }
 
 var DatumSketch = Backbone.View.extend({
-  drawBoxAndLabel: function(x, y, boxw, boxh, value, index) {
+  drawBoxAndLabel: function(x, y, boxw, boxh, value, index, muted) {
     var text_height = boxh-10;
 
     var box = new Kinetic.Rect({
@@ -87,8 +87,8 @@ var DatumSketch = Backbone.View.extend({
       y: y,
       width: boxw,
       height: boxh,
-      stroke: 'black',
-      strokeWidth: 3
+      stroke: muted ? null : 'black',
+      strokeWidth: muted ? 0 : 3,
     });
 
     var label = new Kinetic.Text({
@@ -96,7 +96,7 @@ var DatumSketch = Backbone.View.extend({
       text: value,
       fontSize: text_height,
       fontFamily: 'Helvetica',
-      fill: 'black'
+      fill: muted ? 'grey' : 'black',
     });
     var label_x = x + (boxw - label.textWidth)/2.0;
     label.setX(label_x);
@@ -176,7 +176,7 @@ var NumberSketch = DatumSketch.extend({
     label.add(new Kinetic.Text({
       text: this.model.getSymbol(),
       fontFamily: 'Helvetica',
-      fontSize: 18,
+      fontSize: labelFontSize,
       padding: 5,
       fill: 'black'
     }));
@@ -583,11 +583,12 @@ var BinaryNodeSketch = DatumSketch.extend({
       opacity: 0.75
     });
     label.add(new Kinetic.Tag({
+      fill: 'yellow'
     }));
     label.add(new Kinetic.Text({
       text: this.model.getSymbol(),
       fontFamily: 'Helvetica',
-      fontSize: 18,
+      fontSize: 15,
       padding: 5,
       fill: 'black'
     }));
@@ -927,7 +928,7 @@ var NodeSketch = DatumSketch.extend({
     label.add(new Kinetic.Text({
       text: this.model.getSymbol(),
       fontFamily: 'Helvetica',
-      fontSize: 18,
+      fontSize: labelFontSize,
       padding: 5,
       fill: 'black'
     }));
@@ -1227,7 +1228,7 @@ var EdgeSketch = DatumSketch.extend({
     label.add(new Kinetic.Text({
       text: this.model.getValue(),
       fontFamily: 'Helvetica',
-      fontSize: 18,
+      fontSize: labelFontSize,
       padding: 5,
       fill: 'black'
     }));
@@ -1584,7 +1585,7 @@ var ListSketch = DatumSketch.extend({
     label.add(new Kinetic.Text({
       text: this.model.getSymbol(),
       fontFamily: 'Helvetica',
-      fontSize: 18,
+      fontSize: labelFontSize,
       padding: 5,
       fill: 'black'
     }));
@@ -1617,7 +1618,7 @@ var ListSketch = DatumSketch.extend({
       this.sketches.push(sketch);
       xpos += box_dim+box_shift;
     }
-    this.plus = this.drawBoxAndLabel(xpos, 0, box_dim, box_dim, "+", -1);
+    this.plus = this.drawBoxAndLabel(xpos, 0, box_dim*0.75, box_dim, "+", -1, true);
     this.group.add(this.plus.label);
     this.group.add(this.plus.box);
     this.plus.box.on("click", function() {
@@ -1647,7 +1648,7 @@ var ListSketch = DatumSketch.extend({
       check.add(new Kinetic.Text({
         text: 'done',
         fontFamily: 'Helvetica',
-        fontSize: 18,
+        fontSize: labelFontSize,
         padding: 5,
         fill: 'green'
       }));

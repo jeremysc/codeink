@@ -1,8 +1,8 @@
 var box_dim = 45;
 var box_shift = 3;
 var node_dim = 1.25*box_dim;
-var stageWidth = 850;
 var stageHeight = 550;
+var labelFontSize = 15;
 
 var PaletteView = Backbone.View.extend({
   el: "#palette",
@@ -54,6 +54,11 @@ var PaletteView = Backbone.View.extend({
     $(selector).removeClass('btn-default');
     $(selector).addClass('btn-primary');
     $(selector).addClass('active');
+    if (mode != 'select') {
+      $("#color-picker").show();
+    } else {
+      $("#color-picker").hide();
+    }
   },
   
   render: function() {
@@ -173,7 +178,7 @@ var CanvasView = Backbone.View.extend({
     ///////////////////////////////////
     // Setup the KineticJS stage
     ///////////////////////////////////
-    this.stageWidth = stageWidth;
+    this.stageWidth = $("#stage").width();
     this.stageHeight = stageHeight;
     var stage = new Kinetic.Stage({
         container: 'stage',
