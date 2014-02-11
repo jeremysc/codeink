@@ -111,32 +111,35 @@ var NumberSketch = DatumSketch.extend({
   initialize: function(options) {
     var self = this;
 
-    _.bindAll(this, 'render', 'renderValue', 'selectIfIntersects');
+    _.bindAll(this, 'render', 'renderValue', 'selectIfIntersects', 'moveTo', 'hide', 'show');
     this.layer = options.layer;
     this.globals = options.globals;
     this.dragData = options.dragData;
     this.sketch = null;
     this.selected = false;
 
-    var position = this.model.get('position');
     this.group = new Kinetic.Group({
       name: this.model.getSymbol(),
-      x: position.x,
-      y: position.y
     });
 
-    if (self.model.getValue() == null)
-      self.model.set({value: 0});
+    if (self.model.getValue() == null) {
+      var value = prompt('Enter new value');
+      if (value != null) {
+        self.model.set({value: value});
+        var step = new Assignment({
+          variable: self.model,
+          value: value
+        });
+        self.model.trigger('step', {step: step});
+      }
+    } else {
+      var step = new Assignment({
+        variable: self.model,
+        value: self.model.getValue()
+      });
+      self.model.trigger('step', {step: step});
+    }
 
-    var step = new Assignment({
-      variable: self.model,
-      value: self.model.getValue()
-    });
-    self.model.trigger('step', {step: step});
-
-    this.group.on("dragend", function(event) {
-      self.model.set({position: this.getPosition()});
-    });
     this.model.on('change', this.render);
   },
   
@@ -163,6 +166,8 @@ var NumberSketch = DatumSketch.extend({
       this.layer.draw();
       return;
     }
+    var position = this.model.get('position');
+    this.group.setPosition(position);
 
     // draggable label
     var label = new Kinetic.Label({
@@ -192,12 +197,14 @@ var NumberSketch = DatumSketch.extend({
       tag.setStroke('');
       self.layer.draw();
     });
+    /*
     label.on("dblclick", function() {
       var name = prompt('Enter new name:');
       if (name != null) {
         self.model.set({name: name});
       }
     });
+    */
     this.group.add(label);
 
     this.sketch = this.renderValue();
@@ -243,8 +250,10 @@ var NumberSketch = DatumSketch.extend({
         self.layer.draw();
       }
     });
+    sketch.on("click", function() {
+      self.mouseup = true;
+    });
     sketch.on("dblclick", function() {
-      self.editing = true;
       var value = prompt('Enter new value');
       if (value != null) {
         self.model.set({value: value});
@@ -279,28 +288,24 @@ var NumberSketch = DatumSketch.extend({
       self.layer.draw();
     });
     var startDrag = function(event) {
-      if (self.editing) {
-        self.editing = false;
+      if (self.mouseup) {
+        self.mouseup = false;
         return;
       }
+
+      // move the group to the bottom of siblings, so mouseenter events fire
+      console.log("HI");
+      self.group.moveToBottom();
       
-      // duplicate sketch
-      self.renderValue();
-
-      // move current sketch to global
-      this.moveTo(self.globals);
-      //self.globals.moveToBottom();
-      this.setPosition(self.group.getPosition());
-
       // get grab offset
-      var position = this.getPosition();
+      var position = self.group.getPosition();
       var offset = {x: event.offsetX - position.x,
                     y: event.offsetY - position.y};
       
       self.dragData.set({
         dragging: true,
         expr: self.model,
-        sketch: this,
+        sketch: self,
         offset: offset,
         src: self,
         value: self.model.getValue()
@@ -308,10 +313,27 @@ var NumberSketch = DatumSketch.extend({
       self.layer.draw();
     };
 
-    sketch.on("mousedown", _.debounce(startDrag, 150));
+    sketch.on("mousedown", _.debounce(startDrag, dragTimeout));
 
     this.group.add(sketch);
     return sketch;
+  },
+
+  moveTo: function(position, silent) {
+    this.group.setPosition(position);
+
+    if (silent != undefined || !silent)
+      this.layer.draw();
+  },
+
+  hide: function(silent) {
+    this.model.set({visible: false});
+  },
+
+  show: function(silent) {
+    this.model.set({visible: true});
+    // move the group to the bottom of siblings, so mouseenter events fire
+    this.group.moveToBottom();
   }
 });
 
@@ -334,11 +356,23 @@ var BinaryNodeSketch = DatumSketch.extend({
     this.model.on('showFollow', this.showFollow);
     this.model.on('hideFollow', this.hideFollow);
 
-    var step = new Assignment({
-      variable: this.model,
-      value: new BinaryNodeExpr({value: this.model.getValue()})
-    });
-    this.model.trigger('step', {step: step});
+    if (this.model.getValue() == null) {
+      var value = prompt('Enter new value');
+      if (value != null) {
+        this.model.set({value: value});
+        var step = new Assignment({
+          variable: this.model,
+          value: new BinaryNodeExpr({value: this.model.getValue()})
+        });
+        this.model.trigger('step', {step: step});
+      }
+    } else {
+      var step = new Assignment({
+        variable: this.model,
+        value: new BinaryNodeExpr({value: this.model.getValue()})
+      });
+      this.model.trigger('step', {step: step});
+    }
 
     this.comparing = false;
     this.following = false;
@@ -920,10 +954,12 @@ var NodeSketch = DatumSketch.extend({
     this.group.setPosition(position);
     
     var label = new Kinetic.Label({
+      x: 5,
       y: -30,
       opacity: 0.75
     });
     label.add(new Kinetic.Tag({
+      fill: 'yellow'
     }));
     label.add(new Kinetic.Text({
       text: this.model.getSymbol(),
@@ -1333,7 +1369,16 @@ var ListSketch = DatumSketch.extend({
     this.selectLeft = -1;
     this.numSelected = 0;
 
-    if (this.model.get('initialized')) {
+    if (this.model.get('expr') == null) {
+      var valueString = prompt('Enter comma-separated values, or nothing for an empty list');
+      var values = (valueString == null) ? [] : JSON.parse("["+valueString.replace(/,$/,'')+"]");
+      this.model.set({values: values});
+      var step = new Assignment({
+        variable: this.model,
+        value: this.model.getValue()
+      });
+      this.model.trigger('step', {step: step});
+    } else {
       var step = new Assignment({
         variable: this.model,
         value: this.model.get('expr'),
@@ -1424,6 +1469,24 @@ var ListSketch = DatumSketch.extend({
         self.layer.draw();
       }
     });
+    /*
+    sketch.on("dblclick", function() {
+      var value = prompt('Enter new value');
+      if (value != null) {
+        var values = self.model.get('values');
+        values[index] = value;
+        self.model.set({values: values});
+        var step = new Assignment({
+          variable: new ListVarExpr({
+            list: self.model,
+            index: index
+          }),
+          value: value
+        });
+        self.model.trigger('step', {step: step});
+      }
+    });
+    */
 
     /* dragging:
     when the user clicks:
@@ -1432,6 +1495,25 @@ var ListSketch = DatumSketch.extend({
         - make a copy
       - if user dwells before exit, mark as a pop
         - on exit, pop from the list datum (list redraws and closes gap) 
+    */
+
+    /*
+      dblclick:
+        up
+        click
+        up
+        click
+        start
+
+      click:
+        up
+        click
+        start
+
+      drag:
+        start
+        up
+        click
     */
     var startDrag = function(event) {
       if (self.state.filling()) {
@@ -1447,6 +1529,7 @@ var ListSketch = DatumSketch.extend({
         self.model.trigger('step', {step: step});
         return;
       }
+
       // move selected elems to global scope
       if (self.numSelected > 0) {
         self.selected = [];
@@ -1512,10 +1595,10 @@ var ListSketch = DatumSketch.extend({
       });
       this.exited = false;
       this.dwelled = true;
-      //setTimeout(function(sketch) { sketch.dwelled = true; }, 1000, this);
+      //setTimeout(function(sketch) { console.log('dwelled');sketch.getTag().setFill('#46b6ec'); self.layer.draw(); sketch.dwelled = true; }, 1000, this);
     };
 
-    sketch.on("mousedown", _.debounce(startDrag, 150));
+    sketch.on("mousedown", _.debounce(startDrag, dragTimeout));
 
     sketch.on("mousemove", function(event) {
       if (self.numSelected > 0) {
@@ -1568,7 +1651,7 @@ var ListSketch = DatumSketch.extend({
     var self = this;
     this.group.removeChildren();
     this.group.remove();
-    if (! this.model.get('visible') && this.model.get('initialized')) {
+    if (! this.model.get('visible')) {
       this.layer.draw();
       return;
     }
@@ -1601,12 +1684,14 @@ var ListSketch = DatumSketch.extend({
       tag.setStroke('');
       self.layer.draw();
     });
+    /*
     label.on("dblclick", function() {
       var name = prompt('Enter new name:');
       if (name != null) {
         self.model.set({name: name});
       }
     });
+    */
     this.group.add(label);
 
     // draw the list
@@ -1628,57 +1713,15 @@ var ListSketch = DatumSketch.extend({
         values.push(value);
         self.model.set({values: values});
         self.model.trigger('change');
-        if (self.model.get('initialized')) {
-          var step = new Append({list: self.model, value: value, animation: self.animateAppend});
-          self.model.trigger('step', {step: step});
-        }
+        var step = new Append({list: self.model, value: value, animation: self.animateAppend});
+        self.model.trigger('step', {step: step});
       }
     });
     
-    // initialize button for the list
-    if (!this.model.get('initialized')) {
-      var check = new Kinetic.Label({
-        x: xpos,
-        y: box_dim+box_shift,
-        opacity: 0.75
-      });
-      check.add(new Kinetic.Tag({
-        fill: 'white'
-      }));
-      check.add(new Kinetic.Text({
-        text: 'done',
-        fontFamily: 'Helvetica',
-        fontSize: labelFontSize,
-        padding: 5,
-        fill: 'green'
-      }));
-      check.on("mouseover", function() {
-        var tag = this.getTag();
-        tag.setStroke('black');
-        self.layer.draw();
-      });
-      check.on("mouseout", function() {
-        var tag = this.getTag();
-        tag.setStroke('');
-        self.layer.draw();
-      });
-      check.on("click", function() {
-        self.model.set({initialized: true});
-        var step = new Assignment({
-          variable: self.model,
-          value: self.model.getValue(),
-        });
-        self.model.trigger('step', {step: step});
-      });
-      this.group.add(check);
-    }
-
     // handle dragging of numbers in
     this.group.on("mouseenter", function(event) {
       //TODO why does this work?
-      if (!self.model.get('initialized')) {// || self.dragData.get('src') == self) {
-        return;
-      } else if (self.dragData.get('dragging') && ! self.dragData.get('engaged')) {
+      if (self.dragData.get('dragging') && ! self.dragData.get('engaged')) {
         self.dragData.set({engaged: true});
 
         // hide the sketch
@@ -1736,7 +1779,6 @@ var ListSketch = DatumSketch.extend({
     });
     this.group.on("mousemove", function(event) {
       if (self.dragData.get('dragging') && self.dragData.get('engaged')) {
-        if (!self.model.get('initialized')) return;
         var position = this.getPosition();
         position = {x: event.offsetX - position.x, y: event.offsetY - position.y};
         var values = self.model.get('values');

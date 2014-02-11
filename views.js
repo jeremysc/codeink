@@ -3,6 +3,7 @@ var box_shift = 3;
 var node_dim = 1.25*box_dim;
 var stageHeight = 550;
 var labelFontSize = 15;
+var dragTimeout = 150;
 
 var PaletteView = Backbone.View.extend({
   el: "#palette",
@@ -185,8 +186,6 @@ var CanvasView = Backbone.View.extend({
         width: this.stageWidth,
         height: this.stageHeight
     });    
-    this.layer = new Kinetic.Layer();
-    stage.add(this.layer);
 
     // The background object, and a Group for globals
     var background = new Kinetic.Rect({
@@ -198,8 +197,13 @@ var CanvasView = Backbone.View.extend({
         stroke: 'black',
         strokeWidth: 1
     });
+    var backLayer = new Kinetic.Layer();
+    backLayer.add(background);
+    stage.add(backLayer);
+
+    this.layer = new Kinetic.Layer();
+    stage.add(this.layer);
     this.globals = new Kinetic.Group({name: 'globals'});
-    this.layer.add(background);
     this.layer.add(this.globals);
     this.layer.draw();
 
@@ -267,7 +271,7 @@ var CanvasView = Backbone.View.extend({
     // - dragging an object
     // - selecting
     // - drawing
-    this.layer.on("mousemove", function(event) {
+    stage.on("mousemove", function(event) {
       if (self.dragData.get('dragging')) {
         var offset = self.dragData.get('offset');
         var position = {x: event.offsetX - offset.x,
@@ -382,6 +386,8 @@ var CanvasView = Backbone.View.extend({
             sketch.render();
             sketch.hideAttachment();
           }
+        } else if (sketch.model && sketch.model.get('type') == 'num') {
+          sketch.moveTo(position);
         } else {
           sketch.setPosition(position);
           self.layer.draw();
@@ -428,6 +434,11 @@ var CanvasView = Backbone.View.extend({
         } else if (sketch.model && sketch.model.get('type') == "edge") {
           if (self.dragData.get('side') == 'start')
             sketch.model.set({position: position});
+        } else if (sketch.model && sketch.model.get('type') == "num") {
+          if (self.dragData.get('step') != null)
+            self.steps.trigger('step', {step:self.dragData.get('step')});
+          else
+            sketch.model.set({position: position});
         } else {
           sketch.destroy();
           if (self.dragData.get('step') != null) {
@@ -445,7 +456,6 @@ var CanvasView = Backbone.View.extend({
               }
               self.data.add(new List({
                 name: name,
-                initialized: true,
                 position: position,
                 values: dragValues,
                 expr: dragExpr

@@ -62,7 +62,6 @@ var DragData = Datum.extend({
 var Number = Datum.extend({
   defaults: function() {
     return {
-      initialized: false,
       visible: true,
       name: "num0",
       type: "num",
@@ -78,11 +77,10 @@ var Number = Datum.extend({
 var List = Datum.extend({
   defaults: function() {
     return {
-      initialized: false,
       visible: true,
       name: "list0",
       type: "list",
-      values: [1]
+      values: []
     };
   },
 
@@ -115,7 +113,7 @@ var BinaryNode = Datum.extend({
       visible: true,
       name: "binaryA",
       type: "binary",
-      value: 1,
+      value: null,
       left: null,
       right: null,
       parent: null
