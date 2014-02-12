@@ -52,6 +52,7 @@ var ListSketch = DatumSketch.extend({
     this.expansionPoint = null;
     this.previewAction = null;
     this.previewIndex = null;
+    this.poppedIndex = null;
 
     // Prompt user to initialize the list
     if (this.model.get('expr') == null) {
@@ -179,7 +180,7 @@ var ListSketch = DatumSketch.extend({
     }
     
     // Preview the insert, if necessary
-    if (this.previewAction == 'insert') {
+    if (this.previewAction == 'insert' && this.poppedIndex != this.previewIndex) {
       var x = this.outline.getPosition().x + 
               this.previewIndex*(box_dim+shift_by);
       var sketch = this.renderListValue(x, this.dragData.get('value'), this.previewIndex, true);
@@ -192,14 +193,18 @@ var ListSketch = DatumSketch.extend({
     var values = this.model.get('values');
     for (var index = 0; index < values.length; index++) {
       var value = values[index];
-      if (this.previewAction == 'compare' && this.previewIndex == index) {
-        var dragValue = this.dragData.get('value')[0];
-        this.renderListComparison(xpos, value, dragValue);
-      } else {
-        var sketch = this.renderListValue(xpos, value, index, false);
-        this.sketches.push(sketch);
+      if (index != this.poppedIndex) {
+        if (this.previewAction == 'compare' && this.previewIndex == index) {
+          var dragValue = this.dragData.get('value')[0];
+          this.renderListComparison(xpos, value, dragValue);
+        } else {
+          var sketch = this.renderListValue(xpos, value, index, false);
+          this.sketches.push(sketch);
+        }
+        xpos += box_dim+shift_by;
+      } else if (this.expanded) {
+        xpos += box_dim+shift_by;
       }
-      xpos += box_dim+shift_by;
     }
 
     // Render the plus box
@@ -408,19 +413,32 @@ var ListSketch = DatumSketch.extend({
 
         self.addTimeout(self.startDrag, 150, event);
         self.addTimeout(function() {
-          self.model.pop(index);
+          // self.model.pop(index);
           // modify the expression to be a pop
           var expr = new Pop({list: self.model, index: index});
           self.dragData.set({dwelled: true, expr: expr});
-          self.expanded = true;
-          self.expansionPoint = event.offsetX;
-          self.render();
+          self.poppedIndex = index;
+          self.expand(event.offsetX);
         }, 1000);
       });
     }
 
     this.group.add(sketch);
     return sketch;
+  },
+
+  expand: function(point, silent) {
+    this.expanded = true;
+    this.expansionPoint = point;
+    if (silent == undefined || !silent)
+      this.render();
+  },
+
+  collapse: function(silent) {
+    this.expanded = false;
+    this.expansionPoint = null;
+    if (silent == undefined || !silent)
+      this.render();
   },
     
   startDrag: function(event) {
@@ -458,11 +476,14 @@ var ListSketch = DatumSketch.extend({
         selectedSketch.moveTo(kinetic);
       }
       this.layer.add(kinetic);
+
+      var originalBounds = getGroupRect(kinetic);
       
       this.dragData.set({
         dragging: true,
         sketch: this,
         kinetic: kinetic,
+        originalBounds: originalBounds,
         expr: expr,
         value: value,
         offset: offset,
@@ -475,7 +496,7 @@ var ListSketch = DatumSketch.extend({
     }
   },
 
-  previewInteraction: function(dragSketch, dragBounds, cursor, position) {
+  previewInteraction: function(dragSketch, dragBounds) {
     var exitThresh = box_dim/2;
     var enterThresh = box_dim/4;
     var dwelled = this.dragData.get('dwelled');
@@ -483,12 +504,11 @@ var ListSketch = DatumSketch.extend({
 
     var bounds = getGroupRect(this.group);
 
-    // First, check for exiting
+    // First: cancel dwell timeout if exiting quickly
     if (dragSketch.model.get('name') == this.model.get('name')) {
       if (!dwelled && !exited) {
-        // Make the exit threshold larger than the entrance
-        bounds.left   -= exitThresh;
-        bounds.right  += exitThresh;
+        // Expand the exit bounds a bit
+        var bounds = this.dragData.get('originalBounds');
         bounds.top    -= exitThresh;
         bounds.bottom += exitThresh;
 
@@ -499,8 +519,9 @@ var ListSketch = DatumSketch.extend({
 
           // Re-render to make a copy
           this.render();
+        // Haven't dwelled or exited yet
         } else {
-          return true; // no interaction
+          return true;
         }
       }
     }
@@ -511,7 +532,6 @@ var ListSketch = DatumSketch.extend({
       return false;
     }
 
-
     // Setup the entrance bounds
     if (!this.expanded) {
       bounds.left   -= enterThresh;
@@ -520,40 +540,51 @@ var ListSketch = DatumSketch.extend({
       bounds.bottom += enterThresh;
     }
 
-    var dragCenter = dragBounds.left + 
-                    (dragBounds.right - dragBounds.left)/2;
     if (intersectRect(dragBounds, bounds)) {
       // Expand the list, if not already expanded
       if (!this.expanded) {
-        this.expanded = true;
-        this.expansionPoint = dragCenter;
-        this.render();
+        var dragCenter = dragBounds.left + 
+                        (dragBounds.right - dragBounds.left)/2;
+        this.expand(dragCenter);
       }
 
       // Preview any comparisons or insertions
       var interaction = this.getInteraction(dragBounds);
       var action = interaction.action;
       var actionIndex = interaction.index;
+      // Only allow re-rendering if there's a change in the preview state
       if (this.previewAction != action || this.previewIndex != actionIndex) {
         this.previewAction = action;
         this.previewIndex = actionIndex;
         var kinetic = this.dragData.get('kinetic');
+
+        // If no preview required, then make it a no-op
+        // and show the original Kinetic shape
         if (this.previewAction == null) {
           kinetic.show();
           this.dragData.set({step: null});
+        // Preview an insert
+        // Have to adjust the index if doing a re-arrangement
         } else if (this.previewAction == 'insert') {
+          var index = (this.poppedIndex != null
+            && this.poppedIndex < this.previewIndex) ? 
+            this.previewIndex - 1 : this.previewIndex;
           this.dragData.set({
             step: new Insert({
               list: this.model,
-              index: this.previewIndex,
+              index: index,
               value: this.dragData.get('expr'),
             })
           });
           kinetic.hide();
+        // Preview and commit a comparison
         } else if (this.previewAction == 'compare') {
           var step = new Compare({
             drag: this.dragData.get('expr'),
-            against: new ListVarExpr({list: this.model, index: this.previewIndex}),
+            against: new ListVarExpr({
+              list: this.model,
+              index: this.previewIndex
+            }),
             dragSketch: dragSketch,
             againstSketch: this
           });
@@ -562,17 +593,15 @@ var ListSketch = DatumSketch.extend({
         }
         this.render();
       }
-      return (action != null);
+      return true;
     }
     return false;
   },
 
-  hideInteractions: function(sketch) {
-    this.expanded = false;
-    this.expansionPoint = null;
+  hideInteractions: function(silent) {
     this.previewAction = null;
     this.previewIndex = null;
-    this.render();
+    this.collapse(silent);
   },
 
   getInteraction: function(bounds) {
@@ -589,6 +618,9 @@ var ListSketch = DatumSketch.extend({
     var index = Math.floor(offset / box_dim);
     var action = (index % 2 != 0) ? 'compare' : 'insert';
     index = Math.floor(index / 2);
+    if (index == this.poppedIndex ||
+        (index == this.poppedIndex + 1 && action == 'insert'))
+      return {action: null, index: null};
     return {action: action, index: index};
   }
 });

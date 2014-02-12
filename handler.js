@@ -27,6 +27,27 @@ For every other sketch:
 Lists:
 
   - List:
+
+    Drag laterally:
+      - Expand the list when exiting the original position
+      - Dragged element gets re-drawn
+      - Preview compares and inserts
+    On leaving the bounds:
+      - Collapse the list
+    On re-enter:
+      - Expand the list, start previewing things again
+
+    Dwell and drag laterally:
+      - On dwell: set poppedIndex in the ListSketch
+      - Expand the list
+        - Dragged element is skipped in rendering
+        - Dropping in the gap is a no-op
+      - Preview compares and inserts
+      - On leaving the bounds:
+        - Collapse the list (popped elem should still be skipped)
+      - On re-enter:
+        - Expand again (should be a gap again)
+
     Dwell: trigger a dwell event on the canvas
       - Expand the list if the sketch is a list
 

@@ -384,7 +384,7 @@ var CanvasView = Backbone.View.extend({
     for (var i = 0; i < this.sketches.length; i++) {
       var otherSketch = this.sketches[i];
       var otherModel = otherSketch.model;
-      if (otherSketch.previewInteraction(sketch, bounds, cursor, position)) {
+      if (otherSketch.previewInteraction(sketch, bounds)) {
         interacting = true;
         break;
       } else {
@@ -525,6 +525,9 @@ var CanvasView = Backbone.View.extend({
     var model = sketch.model;
     var type = model.get('type');
 
+    if (type == 'list') {
+      sketch.poppedIndex = null;
+    }
 
     // Trigger the previewed step, if it exists
     var step = this.dragData.get('step');
@@ -537,6 +540,10 @@ var CanvasView = Backbone.View.extend({
       var name = this.getNewDatumName(type);
       switch (type) {
         case "list":
+          // If dropped inside the list
+          // and there's no step, it's a no-op
+          if (sketch.expanded)
+            break;
           var dragExpr = this.dragData.get('expr');
           var dragValues = this.dragData.get('value');
           // Create the new list
@@ -555,15 +562,15 @@ var CanvasView = Backbone.View.extend({
       }
     }
     
-    // Hide interactions
-    for (var i = 0; i < this.sketches.length; i++)
-      this.sketches[i].hideInteractions();
 
     // Destroy the dragged Kinetic shapes
     kinetic.destroy();
     // Reset the dragData object
     this.dragData.set(this.dragData.defaults());
-    //this.layer.draw();
+    // Hide interactions
+    for (var i = 0; i < this.sketches.length; i++)
+      this.sketches[i].hideInteractions();
+    this.layer.draw();
     return;
 
     if (sketch.model && sketch.model.get('type') == "binary") {

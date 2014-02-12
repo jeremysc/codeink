@@ -57,6 +57,7 @@ var DragData = Datum.extend({
       // Views of the dragged object
       sketch: null,
       kinetic: null,
+      originalBounds: null,
 
       // State of the drag
       exited: false,
