@@ -535,14 +535,18 @@ var CanvasView = Backbone.View.extend({
         case "list":
           var dragExpr = this.dragData.get('expr');
           var dragValues = this.dragData.get('value');
+          // Create the new list
+          // Should trigger a new step and rendering of a new list
           this.data.add(new List({
             name: name,
             position: position,
             values: dragValues,
             expr: dragExpr
           }));
+          // Destroy the dragged Kinetic shapes
           kinetic.destroy();
           break;
+
         default:
           sketch.model.set({position: position});
           break;

@@ -49,6 +49,9 @@ var ListSketch = DatumSketch.extend({
     this.selectLeft = null;
     this.numSelected = 0;
     this.expanded = false;
+    this.expansionPoint = null;
+    this.previewAction = null;
+    this.previewIndex = null;
 
     // Prompt user to initialize the list
     if (this.model.get('expr') == null) {
@@ -158,7 +161,6 @@ var ListSketch = DatumSketch.extend({
       var fixedIndex = Math.floor(localExpansionPoint / 
                                   (box_dim+box_shift));
       var fixedX = fixedIndex * (box_dim+box_shift);
-      console.log(fixedIndex);
       var left = fixedX - (fixedIndex * (box_dim+expanded_shift));
       this.outline = new Kinetic.Rect({
         x: left - box_dim,
@@ -173,13 +175,22 @@ var ListSketch = DatumSketch.extend({
       shift_by = expanded_shift;
     } else {
       xpos = 0;
-      shift_by = box_shift; }
+      shift_by = box_shift;
+    }
+    
+    // Preview the insert, if necessary
+    if (this.previewAction == 'insert') {
+      var x = this.outline.getPosition().x + 
+              this.previewIndex*(box_dim+shift_by);
+      this.renderListValue(x, this.dragData.get('value'), this.previewIndex, true);
+    }
 
     // Render each list element
     this.sketches = [];
     var values = this.model.get('values');
     for (var index = 0; index < values.length; index++) {
-      var sketch = this.renderListValue(xpos, index);
+      var value = values[index];
+      var sketch = this.renderListValue(xpos, value, index, false);
       this.sketches.push(sketch);
       xpos += box_dim+shift_by;
     }
@@ -251,11 +262,8 @@ var ListSketch = DatumSketch.extend({
   },
 
   // Draw a list value
-  renderListValue: function(x, index) {
+  renderListValue: function(x, value, index, isPreview) {
     var self = this;
-
-    var values = this.model.get('values');
-    var value = values[index];
 
     // Draw it using a Kinetic.Label
     var sketch = new Kinetic.Label({
@@ -264,83 +272,114 @@ var ListSketch = DatumSketch.extend({
     sketch.add(new Kinetic.Tag({
       strokeWidth: 3
     }));
-    sketch.add(new Kinetic.Text({
-      text: value,
-      fontFamily: 'Helvetica',
-      fontSize: 35,
-      width: box_dim,
-      height: box_dim,
-      offsetY: -5,
-      align: 'center',
-      fill: 'black'
-    }));
-    // Highlight on hover, if not selected
-    sketch.on("mouseover", function() {
-      if (self.numSelected == 0) {
-        var tag = this.getTag();
-        tag.setStroke('red');
-        self.layer.draw();
-      }
-    });
-    sketch.on("mouseout", function() {
-      if (self.numSelected == 0) {
-        var tag = this.getTag();
-        tag.setStroke('black');
-        self.layer.draw();
-      }
-    });
+    if (this.previewAction == 'compare' && this.previewIndex == index) {
+      var dragValue = this.dragData.get('value')[0];
+      var first = (value <= dragValue) ? value : dragValue;
+      var second = (value > dragValue) ? value : dragValue;
+      var operator = (value == dragValue) ? "=" : "<";
+      var isFirst = (value > dragValue);
+      sketch.add(new Kinetic.Text({
+        text: first + operator,
+        fontFamily: 'Helvetica',
+        fontSize: 20,
+        width: box_dim,
+        height: box_dim,
+        offsetX: box_dim/2,
+        offsetY: -5,
+        align: 'center',
+        fill: isFirst ? '#46b6ec' : 'black'
+      }));
+      sketch.add(new Kinetic.Text({
+        text: second,
+        fontFamily: 'Helvetica',
+        fontSize: 20,
+        width: box_dim,
+        height: box_dim,
+        offsetY: -5,
+        align: 'center',
+        fill: isFirst ? 'black' : '#46b6ec'
+      }));
+    } else {
+      sketch.add(new Kinetic.Text({
+        text: value,
+        fontFamily: 'Helvetica',
+        fontSize: 35,
+        width: box_dim,
+        height: box_dim,
+        offsetY: -5,
+        align: 'center',
+        fill: 'black'
+      }));
+    }
+    if (! isPreview) {
+      // Highlight on hover, if not selected
+      sketch.on("mouseover", function() {
+        if (self.numSelected == 0) {
+          var tag = this.getTag();
+          tag.setStroke('red');
+          self.layer.draw();
+        }
+      });
+      sketch.on("mouseout", function() {
+        if (self.numSelected == 0) {
+          var tag = this.getTag();
+          tag.setStroke('black');
+          self.layer.draw();
+        }
+      });
 
-    sketch.on("click", function() {
-      self.selectLeft = null;
-      self.numSelected = 0;
-      self.clearTimeouts();
-      /*
-      if (self.state.filling()) {
-        var step = new Fill({
-          variable: new ListVarExpr({
+      sketch.on("click", function() {
+        self.selectLeft = null;
+        self.numSelected = 0;
+        self.clearTimeouts();
+        /*
+        if (self.state.filling()) {
+          var step = new Fill({
+            variable: new ListVarExpr({
+              list: self.model,
+              index: index
+            }),
             list: self.model,
-            index: index
-          }),
-          list: self.model,
-          index: index,
-          color: self.state.color
-        });
-        self.model.trigger('step', {step: step});
-        return;
-      }
-      */
-    });
-    sketch.on("dblclick", function() {
-      self.selectLeft = null;
-      self.numSelected = 0;
-      self.clearTimeouts();
-      var value = prompt('Enter new value');
-      if (value != null) {
-        var values = self.model.get('values');
-        values[index] = value;
-        self.model.set({values: values});
-        var step = new Assignment({
-          variable: new ListVarExpr({
-            list: self.model,
-            index: index
-          }),
-          value: value
-        });
-        self.model.trigger('step', {step: step});
-      }
-    });
+            index: index,
+            color: self.state.color
+          });
+          self.model.trigger('step', {step: step});
+          return;
+        }
+        */
+      });
+      sketch.on("dblclick", function() {
+        self.selectLeft = null;
+        self.numSelected = 0;
+        self.clearTimeouts();
+        var value = prompt('Enter new value');
+        if (value != null) {
+          var values = self.model.get('values');
+          values[index] = value;
+          self.model.set({values: values});
+          var step = new Assignment({
+            variable: new ListVarExpr({
+              list: self.model,
+              index: index
+            }),
+            value: value
+          });
+          self.model.trigger('step', {step: step});
+        }
+      });
 
-    sketch.on("mousedown", function(event) {
-      if (self.numSelected == 0) {
-        self.selectLeft = index;
-        self.numSelected = 1;
-      }
+      sketch.on("mousedown", function(event) {
+        if (self.numSelected == 0) {
+          self.selectLeft = index;
+          self.numSelected = 1;
+        }
 
-      self.addTimeout(self.startDrag, 150, event);
-      self.addTimeout(function() {
-        console.log('dwelled');
-      }, 1000);
-    });
+        self.addTimeout(self.startDrag, 150, event);
+        self.addTimeout(function() {
+          console.log('dwelled');
+        }, 1000);
+      });
+    }
 
     this.group.add(sketch);
     return sketch;
@@ -422,10 +461,17 @@ var ListSketch = DatumSketch.extend({
           // Re-render to make a copy
           this.render();
         } else {
-          return false; // no interaction
+          return true; // no interaction
         }
       }
     }
+
+    // No interactions for sublists
+    var values = this.dragData.get('value');
+    if (isArray(values) && values.length > 1) {
+      return false;
+    }
+
 
     // Setup the entrance bounds
     if (!this.expanded) {
@@ -446,16 +492,20 @@ var ListSketch = DatumSketch.extend({
       }
 
       // Preview any comparisons or insertions
-      var closestAction = this.getInteraction(dragBounds);
-      if (closestAction.action != null) {
-        if (closestAction.action == 'compare') {
-          console.log("PREVIEW COMPARE " + closestAction.index);
-        } else if (closestAction.action == 'insert') {
-          console.log("PREVIEW INSERT " + closestAction.index);
-        }
-
-        return true;
+      var interaction = this.getInteraction(dragBounds);
+      var action = interaction.action;
+      var actionIndex = interaction.index;
+      if (this.previewAction != action || this.previewIndex != actionIndex) {
+        this.previewAction = action;
+        this.previewIndex = actionIndex;
+        var kinetic = this.dragData.get('kinetic');
+        if (this.previewAction == null)
+          kinetic.show();
+        else
+          kinetic.hide();
+        this.render();
       }
+      return (action != null);
     }
     return false;
   },
@@ -463,6 +513,8 @@ var ListSketch = DatumSketch.extend({
   hideInteractions: function(sketch) {
     this.expanded = false;
     this.expansionPoint = null;
+    this.previewAction = null;
+    this.previewIndex = null;
     this.render();
   },
 
@@ -470,7 +522,7 @@ var ListSketch = DatumSketch.extend({
     var groupPosition = this.group.getPosition();
     if (bounds.bottom < groupPosition.y ||
         bounds.top > groupPosition.y + box_dim)
-      return {action: null, index: -1};
+      return {action: null, index: null};
 
     var x = bounds.left + (bounds.right - bounds.left)/2;
     var localX = x - groupPosition.x;
