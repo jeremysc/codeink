@@ -1,3 +1,12 @@
+.navbar {
+  min-height: 30px;
+  height: 30px;
+  margin-bottom: 10px;
+}
+.navbar-brand {
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
 #main {
   padding-left: 10px;
   padding-right: 10px;
