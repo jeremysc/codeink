@@ -1,5 +1,6 @@
 var box_dim = 45;
 var box_shift = 3;
+var expanded_shift = box_dim;
 var node_dim = 1.25*box_dim;
 var stageHeight = 550;
 var labelFontSize = 15;
@@ -174,11 +175,9 @@ var CanvasView = Backbone.View.extend({
     this.sketches = [];
     this.activeStep = options.activeStep;
     this.state = options.state;
-    _.bindAll(this, 'handleDrop', 'render', 'getSketch');
+    _.bindAll(this, 'render', 'getSketchByDatum', 'handleDataDrop', 'handleDrag', 'handleRelease');
 
-    ///////////////////////////////////
     // Setup the KineticJS stage
-    ///////////////////////////////////
     this.stageWidth = $("#stage").width();
     this.stageHeight = stageHeight;
     var stage = new Kinetic.Stage({
@@ -207,9 +206,7 @@ var CanvasView = Backbone.View.extend({
     this.layer.add(this.globals);
     this.layer.draw();
 
-    ///////////////////////////////////
     // Handle events on the stage
-    ///////////////////////////////////
     // Dropping new data objects on the stage, from the palette
     this.container = stage.getContainer();
     this.container.addEventListener("dragenter", function(e) {
@@ -220,24 +217,26 @@ var CanvasView = Backbone.View.extend({
       e.preventDefault();
       return false;
     });
-    this.container.addEventListener("drop", this.handleDrop);
+    this.container.addEventListener("drop", this.handleDataDrop);
+
     // When objects are added, re-render the stage
     this.data.on("add", this.render);
 
     // Dragging data around on the stage
     // Move the data using mousedown/move/up events,
     // instead of making KineticJS objects draggable
-    this.dragData = new DragData({});
+    this.dragData = new DragData();
     this.selectStart = {x: 0, y: 0};
     this.selectRect;
     this.selecting = false;
     this.drawing = false;
     this.strokes = [];
 
-    // clicking on the background results in:
-    // selecting and drawing
+    // clicking on the background results in
+    // selecting or drawing
     background.on("mousedown", function(event) {
       if (!self.selecting && self.state.selecting()) {
+        //TODO: Deselect on click
         self.selectStart.x = event.offsetX;
         self.selectStart.y = event.offsetY;
         self.selecting = true;
@@ -267,131 +266,10 @@ var CanvasView = Backbone.View.extend({
       }
     });
 
-    // handle mouse move while:
-    // - dragging an object
-    // - selecting
-    // - drawing
     stage.on("mousemove", function(event) {
+      // Dragging an object
       if (self.dragData.get('dragging')) {
-        var offset = self.dragData.get('offset');
-        var position = {x: event.offsetX - offset.x,
-                        y: event.offsetY - offset.y};
-        var sketch = self.dragData.get('sketch');
-        if (sketch.model && sketch.model.get('type') == 'binary') {
-          var nodeOffset = self.dragData.get('nodeOffset');
-          var nodePosition = {  x: event.offsetX - nodeOffset.x,
-                                y: event.offsetY - nodeOffset.y};
-
-          // look for intersections
-          var moveNode = true;
-          for (var i = 0; i < self.sketches.length; i++) {
-            var s = self.sketches[i];
-            var otherModel = s.model;
-            if (otherModel.get('type') != 'binary' || 
-                otherModel.get('name') == sketch.model.get('name'))
-              continue;
-
-            if (s.intersectsNode(nodePosition)) {
-              moveNode = false;
-              if (s.showComparison(sketch))  {
-                var step = new Compare({
-                  drag: sketch.model,
-                  against: s.model,
-                  dragSketch: sketch,
-                  againstSketch: s
-                });
-                sketch.model.trigger('step', {step: step});
-              }
-            // otherwise, check for end-of-pointer intersection
-            // this shouldn't come up if there's a node at the end of the pointer (intersectsNode)
-            } else if (s.intersectsHead(nodePosition)) {
-              moveNode = false;
-              s.hideFollow();
-              var side = s.intersectsHead(nodePosition);
-              // preview the insertion
-              if (sketch.showInsertion(s, side)) {
-                // trigger the step
-                var step = new BinaryNodeInsert({
-                  parent: s.model,
-                  side: side,
-                  child: sketch.model
-                });
-                self.dragData.set({step: step});
-              }
-            // lastly, check for pointer intersection
-            } else if (s.intersectsPointer(nodePosition)) {
-              moveNode = false;
-              var side = s.intersectsPointer(nodePosition);
-              if (s.showFollow(sketch, side)) {
-                var step = new Follow({
-                  drag: sketch.model,
-                  from: s.model,
-                  side: side,
-                  dragSketch: sketch,
-                  fromSketch: s
-                });
-                sketch.model.trigger('step', {step: step});
-              }
-            // if the dragged node doesn't overlap anything in the candidate node, then hide any changes
-            } else {
-              s.hideComparison();
-              s.hideFollow();
-            }
-          }
-          if (moveNode) {
-            // check if the node has parents
-            if (sketch.model.get('parent') != null) {
-              var parentModel = sketch.parent.model;
-              var side = sketch.parent.getChildSide(sketch.model);
-              sketch.model.set({'parent': null});
-              // trigger the detachment
-              var step = new BinaryNodeDetach({
-                parent: parentModel, 
-                side: side,
-                child: sketch.model
-              });
-              sketch.model.trigger('step', {step: step});
-            }
-            if (sketch.hideInsertion())
-              self.dragData.set({step: null});
-            // move the node (should move any subtrees)
-            sketch.moveTo(position);
-          }
-        // TYPE: NODE
-        } else if (sketch.model && sketch.model.get('type') == 'edge') {
-          // look for intersections
-          var moveEdge = true;
-          var side = self.dragData.get('side');
-          for (var i = 0; i < self.sketches.length; i++) {
-            var s = self.sketches[i];
-            var otherModel = s.model;
-            if (otherModel.get('type') != 'node')
-              continue;
-
-            if (s.pointIntersectsNode(position)) {
-              moveEdge = false;
-              if (sketch.showAttachment(s, side)) {
-                /*
-                var step = new EdgeAttachment({
-                  parent: s.model,
-                  side: side,
-                  child: sketch.model
-                });
-                self.dragData.set({step: step});
-                */
-              }
-            }
-          }
-          if (moveEdge) {
-            sketch.render();
-            sketch.hideAttachment();
-          }
-        } else if (sketch.model && sketch.model.get('type') == 'num') {
-          sketch.moveTo(position);
-        } else {
-          sketch.setPosition(position);
-          self.layer.draw();
-        }
+        self.handleDrag(event);
       // Rectangular selection
       } else if (self.selecting) {
         var current = {
@@ -419,65 +297,7 @@ var CanvasView = Backbone.View.extend({
     // - ending a drawn stroke
     $(this.container).on("mouseup", function(event) {
       if (self.dragData.get('dragging')) {
-        var offset = self.dragData.get('offset');
-        var sketch = self.dragData.get('sketch');
-        var position = {x: event.offsetX - offset.x,
-                        y: event.offsetY - offset.y};
-
-        var sketch = self.dragData.get('sketch');
-        if (sketch.model && sketch.model.get('type') == "binary") {
-          sketch.hideInsertion(true);
-          if (self.dragData.get('step') != null)
-            self.steps.trigger('step', {step:self.dragData.get('step')});
-          else
-            sketch.model.set({position: position});
-        } else if (sketch.model && sketch.model.get('type') == "edge") {
-          if (self.dragData.get('side') == 'start')
-            sketch.model.set({position: position});
-        } else if (sketch.model && sketch.model.get('type') == "num") {
-          if (self.dragData.get('step') != null)
-            self.steps.trigger('step', {step:self.dragData.get('step')});
-          else
-            sketch.model.set({position: position});
-        } else {
-          sketch.destroy();
-          if (self.dragData.get('step') != null) {
-            self.steps.trigger('step', {step:self.dragData.get('step')});
-          } else {
-            var dragExpr = self.dragData.get('expr');
-            var dragValues = self.dragData.get('value');
-            if (isArray(dragValues)) {
-              var name;
-              for (var i = 1; i <= 40; i++) {
-                name = 'list'+i;
-                var datum = self.data.findWhere({name: name});
-                if (datum == null)
-                  break;
-              }
-              self.data.add(new List({
-                name: name,
-                position: position,
-                values: dragValues,
-                expr: dragExpr
-              }));
-            } else {
-              var name;
-              for (var i = 1; i <= 40; i++) {
-                name = 'num'+i;
-                var datum = self.data.findWhere({name: name});
-                if (datum == null)
-                  break;
-              }
-              self.data.add(new Number({
-                name: name,
-                position: position,
-                value: dragValues
-              }));
-            }
-          }
-        }
-        self.dragData.set(self.dragData.defaults());
-        self.layer.draw();
+        self.handleRelease(event);
       } else if (self.selecting) {
         self.selectRect.destroy();
         self.selecting = false;
@@ -491,32 +311,299 @@ var CanvasView = Backbone.View.extend({
         self.layer.draw();
       }
     });
-
-    // The active step view on the stage
-    this.activeStepView = new ActiveStepView({
-      model: this.activeStep,
-      steps: this.steps,
-      layer: this.layer,
-      globals: this.globals,
-      dragData: this.dragData,
-      stageWidth: this.stageWidth,
-      stageHeight: this.stageHeight
-    });
   },
 
-
   // Get the sketch for a particular datum
-  getSketch: function(datum) {
+  getSketchByDatum: function(datum) {
     for (var i = 0; i < this.sketches.length; i++) {
       var sketch = this.sketches[i];
       if (sketch.model.get('name') == datum.get('name'))
-        return sketch
+        return sketch;
     }
+  },
+
+  getNewDatumName: function(type) {
+    var name;
+    for (var i = 1; i <= 40; i++) {
+      name = type+i;
+      var datum = this.data.findWhere({name: name});
+      if (datum == null)
+        return name;
+    }
+  },
+
+  // Handle dragging of objects
+  // - Look for interactions with other objects
+  //  - Preview the resulting changes
+  // - Otherwise, just move the dragged object (kinetic node)
+
+  /* What's in dragData?
+    // Dragging state and offset
+    dragging: false,
+    offset: null,
+    nodeOffset: null,
+
+    // Dragged expression and value
+    expr: null,
+    value: null,
+
+    // Views of the dragged object
+    sketch: null,
+    kinetic: null,
+
+    // State of the drag
+    exited: false,
+    dwelled: false,
+    engagedSketch: null,
+    engagedBehavior: null,
+
+    // Resulting step
+    step: null,
+  */
+  handleDrag: function(event) {
+    // Get new position of the dragged object
+    var offset = this.dragData.get('offset');
+    var cursor = {x: event.offsetX, y: event.offsetY};
+    var position = {x: cursor.x - offset.x,
+                    y: cursor.y - offset.y};
+    
+    // Get some drag data
+    var sketch = this.dragData.get('sketch');
+    var kinetic = this.dragData.get('kinetic');
+    var model = sketch.model;
+    var type = model.get('type');
+    var dwelled = this.dragData.get('dwelled');
+    var exited = this.dragData.get('exited');
+
+    // Get the bounding box for the dragged object 
+    kinetic.setPosition(position);
+    var bounds = getGroupRect(kinetic);
+
+    // Preview interactions with other objects, if any
+    var interacting = false;
+    for (var i = 0; i < this.sketches.length; i++) {
+      var otherSketch = this.sketches[i];
+      var otherModel = otherSketch.model;
+      if (otherSketch.previewInteraction(sketch, bounds, cursor, position)) {
+        interacting = true;
+        break;
+      } else {
+        otherSketch.hideInteractions();
+      }
+    }
+
+    // If no interactions, then just redraw the layer
+    // since the kinetic shape has been moved
+    //if (! interacting) {
+      this.layer.draw();
+      return;
+    //}
+
+    if (type == 'binary') {
+      var nodeOffset = self.dragData.get('nodeOffset');
+      var nodePosition = {  x: event.offsetX - nodeOffset.x,
+                            y: event.offsetY - nodeOffset.y};
+
+      // look for intersections
+      var moveNode = true;
+      for (var i = 0; i < self.sketches.length; i++) {
+        var s = self.sketches[i];
+        var otherModel = s.model;
+        if (otherModel.get('type') != 'binary' || 
+            otherModel.get('name') == sketch.model.get('name'))
+          continue;
+
+        if (s.intersectsNode(nodePosition)) {
+          moveNode = false;
+          if (s.showComparison(sketch))  {
+            var step = new Compare({
+              drag: sketch.model,
+              against: s.model,
+              dragSketch: sketch,
+              againstSketch: s
+            });
+            sketch.model.trigger('step', {step: step});
+          }
+        // otherwise, check for end-of-pointer intersection
+        // this shouldn't come up if there's a node at the end of the pointer (intersectsNode)
+        } else if (s.intersectsHead(nodePosition)) {
+          moveNode = false;
+          s.hideFollow();
+          var side = s.intersectsHead(nodePosition);
+          // preview the insertion
+          if (sketch.showInsertion(s, side)) {
+            // trigger the step
+            var step = new BinaryNodeInsert({
+              parent: s.model,
+              side: side,
+              child: sketch.model
+            });
+            self.dragData.set({step: step});
+          }
+        // lastly, check for pointer intersection
+        } else if (s.intersectsPointer(nodePosition)) {
+          moveNode = false;
+          var side = s.intersectsPointer(nodePosition);
+          if (s.showFollow(sketch, side)) {
+            var step = new Follow({
+              drag: sketch.model,
+              from: s.model,
+              side: side,
+              dragSketch: sketch,
+              fromSketch: s
+            });
+            sketch.model.trigger('step', {step: step});
+          }
+        // if the dragged node doesn't overlap anything in the candidate node, then hide any changes
+        } else {
+          s.hideComparison();
+          s.hideFollow();
+        }
+      }
+      if (moveNode) {
+        // check if the node has parents
+        if (sketch.model.get('parent') != null) {
+          var parentModel = sketch.parent.model;
+          var side = sketch.parent.getChildSide(sketch.model);
+          sketch.model.set({'parent': null});
+          // trigger the detachment
+          var step = new BinaryNodeDetach({
+            parent: parentModel, 
+            side: side,
+            child: sketch.model
+          });
+          sketch.model.trigger('step', {step: step});
+        }
+        if (sketch.hideInsertion())
+          self.dragData.set({step: null});
+        // move the node (should move any subtrees)
+        sketch.moveTo(position);
+      }
+    // TYPE: NODE
+    } else if (sketch.model && sketch.model.get('type') == 'edge') {
+      // look for intersections
+      var moveEdge = true;
+      var side = self.dragData.get('side');
+      for (var i = 0; i < self.sketches.length; i++) {
+        var s = self.sketches[i];
+        var otherModel = s.model;
+        if (otherModel.get('type') != 'node')
+          continue;
+
+        if (s.pointIntersectsNode(position)) {
+          moveEdge = false;
+          if (sketch.showAttachment(s, side)) {
+            /*
+            var step = new EdgeAttachment({
+              parent: s.model,
+              side: side,
+              child: sketch.model
+            });
+            self.dragData.set({step: step});
+            */
+          }
+        }
+      }
+      if (moveEdge) {
+        sketch.render();
+        sketch.hideAttachment();
+      }
+    } else if (sketch.model && sketch.model.get('type') == 'num') {
+      sketch.moveTo(position);
+    }
+  },
+
+  handleRelease: function(event) {
+    // Get new position of the dragged object
+    var offset = this.dragData.get('offset');
+    var position = {x: event.offsetX - offset.x,
+                    y: event.offsetY - offset.y};
+    
+    // Get some drag data
+    var sketch = this.dragData.get('sketch');
+    var kinetic = this.dragData.get('kinetic');
+    var model = sketch.model;
+    var type = model.get('type');
+
+    var name = this.getNewDatumName(type);
+
+    var step = this.dragData.get('step');
+    if (step != null)
+      this.steps.trigger('step', {step: step});
+    else {
+      switch (type) {
+        case "list":
+          var dragExpr = this.dragData.get('expr');
+          var dragValues = this.dragData.get('value');
+          this.data.add(new List({
+            name: name,
+            position: position,
+            values: dragValues,
+            expr: dragExpr
+          }));
+          kinetic.destroy();
+          break;
+        default:
+          sketch.model.set({position: position});
+          break;
+      }
+    }
+
+    this.dragData.set(this.dragData.defaults());
+    //this.layer.draw();
+    return;
+
+    if (sketch.model && sketch.model.get('type') == "binary") {
+      sketch.hideInsertion(true);
+      if (this.dragData.get('step') != null)
+        this.steps.trigger('step', {step:this.dragData.get('step')});
+      else
+        sketch.model.set({position: position});
+    } else if (sketch.model && sketch.model.get('type') == "edge") {
+      if (this.dragData.get('side') == 'start')
+        sketch.model.set({position: position});
+    } else if (sketch.model && sketch.model.get('type') == "num") {
+      if (this.dragData.get('step') != null)
+        this.steps.trigger('step', {step:this.dragData.get('step')});
+      else
+        sketch.model.set({position: position});
+    } else {
+      sketch.destroy();
+      if (this.dragData.get('step') != null) {
+        this.steps.trigger('step', {step:this.dragData.get('step')});
+      } else {
+        var dragExpr = this.dragData.get('expr');
+        var dragValues = this.dragData.get('value');
+        if (isArray(dragValues)) {
+          this.data.add(new List({
+            name: name,
+            position: position,
+            values: dragValues,
+            expr: dragExpr
+          }));
+        } else {
+          var name;
+          for (var i = 1; i <= 40; i++) {
+            name = 'num'+i;
+            var datum = this.data.findWhere({name: name});
+            if (datum == null)
+              break;
+          }
+          this.data.add(new Number({
+            name: name,
+            position: position,
+            value: dragValues
+          }));
+        }
+      }
+    }
+    this.dragData.set(this.dragData.defaults());
+    this.layer.draw();
   },
 
   // Handles drag-and-drop of new data objects from the palette
   // Creates and adds Datum model to Data collection
-  handleDrop: function(e) {
+  handleDataDrop: function(e) {
     var position = {
       x: e.x - $(this.container).offset().left,
       y: e.y - $(this.container).offset().top

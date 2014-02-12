@@ -45,16 +45,27 @@ var Datum = Backbone.Model.extend({
 var DragData = Datum.extend({
   defaults: function() {
     return {
+      // Dragging state and offset
       dragging: false,
-      engaged: false,
-      expr: null,
-      sketch: null,
       offset: null,
       nodeOffset: null,
-      step: null,
-      src: null,
+
+      // Dragged expression and value
+      expr: null,
       value: null,
-      fromSelect: false
+
+      // Views of the dragged object
+      sketch: null,
+      kinetic: null,
+
+      // State of the drag
+      exited: false,
+      dwelled: false,
+      engagedSketch: null,
+      engagedBehavior: null,
+
+      // Resulting step
+      step: null,
     };
   }
 });
