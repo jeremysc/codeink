@@ -55,18 +55,24 @@ function getRectCorners(r) {
   return {left: l, right: r, top: t, bottom: b};
 }
 function getGroupRect(group) {
+  var avoidNames = ["plus", "label"];
   var groupPosition = group.getPosition();
-  var rects = group.getChildren().map(function(child) {
+  var rects = [];
+  var children = group.getChildren();
+  for (var i = 0; i < children.length; i++) {
+    var child = children[i];
+    if (avoidNames.indexOf(child.getName()) != -1)
+      continue;
     var position = child.getPosition();
     var width = child.getWidth();
     var height = child.getHeight();
-    return {
+    rects.push({
       left: groupPosition.x + position.x,
       right: groupPosition.x + position.x + width,
       top: groupPosition.y + position.y,
       bottom: groupPosition.y + position.y + height
-    };
-  });
+    });
+  }
   var groupRect = rects[0];
   for (var i = 1; i < rects.length; i++) {
     var rect = rects[i];
@@ -191,7 +197,8 @@ var NumberSketch = DatumSketch.extend({
     var label = new Kinetic.Label({
       x: 0,
       y: -28,
-      opacity: 0.75
+      opacity: 0.75,
+      name: 'label'
     });
     label.add(new Kinetic.Tag({
       fill: 'yellow'

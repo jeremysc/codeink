@@ -210,6 +210,7 @@ var ListSketch = DatumSketch.extend({
     // Render the plus box
     this.plus = new Kinetic.Label({
       x: xpos,
+      name: 'plus'
     });
     this.plus.add(new Kinetic.Tag({
       strokeWidth: 0
@@ -413,7 +414,10 @@ var ListSketch = DatumSketch.extend({
 
         self.addTimeout(self.startDrag, 150, event);
         self.addTimeout(function() {
-          // self.model.pop(index);
+          // if exited, ignore the dwell
+          // shouldn't happen if exit clears the timeout
+          if (self.dragData.get('exited'))
+            return;
           // modify the expression to be a pop
           var expr = new Pop({list: self.model, index: index});
           self.dragData.set({dwelled: true, expr: expr});
@@ -477,13 +481,13 @@ var ListSketch = DatumSketch.extend({
       }
       this.layer.add(kinetic);
 
-      var originalBounds = getGroupRect(kinetic);
+      var bounds = getGroupRect(kinetic);
       
       this.dragData.set({
         dragging: true,
         sketch: this,
         kinetic: kinetic,
-        originalBounds: originalBounds,
+        originalBounds: bounds,
         expr: expr,
         value: value,
         offset: offset,
@@ -507,10 +511,13 @@ var ListSketch = DatumSketch.extend({
     // First: cancel dwell timeout if exiting quickly
     if (dragSketch.model.get('name') == this.model.get('name')) {
       if (!dwelled && !exited) {
-        // Expand the exit bounds a bit
-        var bounds = this.dragData.get('originalBounds');
-        bounds.top    -= exitThresh;
-        bounds.bottom += exitThresh;
+        var originalBounds = this.dragData.get('originalBounds');
+        var bounds = {
+          left: originalBounds.left,
+          right: originalBounds.right,
+          top: originalBounds.top - exitThresh,
+          bottom: originalBounds.bottom + exitThresh
+        };
 
         // If exited, then update dragData and make the copy
         if (!intersectRect(dragBounds, bounds)) {
