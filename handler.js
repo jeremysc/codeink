@@ -208,3 +208,28 @@ sketch.on("mousemove", function(event) {
   }
 });
 
+// NUMBERS
+sketch.on("mouseenter", function(event) {
+  if (self.dragData.get('dragging') && ! self.dragData.get('engaged') && self.dragData.get('src') != self) {
+    self.dragData.set({engaged: true});
+    // hide the sketch
+    self.dragData.get('sketch').hide();
+
+    self.origValue = self.model.get('value');
+    self.dragData.set({step: new Assignment({
+      variable: self.model,
+      value: self.dragData.get('expr')
+    })});
+    self.model.set({value: self.dragData.get('value')});
+  }
+  self.layer.draw();
+});
+sketch.on("mouseleave", function(event) {
+  if (self.dragData.get('dragging') && self.dragData.get('engaged')) {
+    self.dragData.set({engaged: false, step: null});
+    self.dragData.get('sketch').show();
+    self.model.set({value: self.origValue});
+  }
+  self.layer.draw();
+});
+

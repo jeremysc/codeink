@@ -392,12 +392,12 @@ var CanvasView = Backbone.View.extend({
       }
     }
 
-    // If no interactions, then just redraw the layer
-    // since the kinetic shape has been moved
-    //if (! interacting) {
-      this.layer.draw();
-      return;
-    //}
+    if (! interacting) {
+      kinetic.show();
+      this.dragData.set({step: null});
+    }
+    this.layer.draw();
+    return;
 
     if (type == 'binary') {
       var nodeOffset = self.dragData.get('nodeOffset');
@@ -561,7 +561,6 @@ var CanvasView = Backbone.View.extend({
           break;
       }
     }
-    
 
     // Destroy the dragged Kinetic shapes
     kinetic.destroy();

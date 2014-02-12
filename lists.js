@@ -1,35 +1,3 @@
-/* Sketches
-  initialize
-    - initialize the sketch
-    - trigger an assignment step
-
-  render
-    - redraw the list
-
-  fill
-    - fill a list element
-
-  getBoundingBox 
-    - shape
-    - rect
-    - circle
-
-  selectIfIntersects
-    - select list elements enclosed in the selection box
-    - trigger render
-
-  deselect
-    - deselect any selected list elements
-    - trigger render
-
-  intersects
-    - test for intersection with the entire list
-    - expand if there is an intersection
-
-  startDrag
-    - beginning of dragging a list element
-*/
-
 var ListSketch = DatumSketch.extend({
   model: List,
 
@@ -195,7 +163,8 @@ var ListSketch = DatumSketch.extend({
       var value = values[index];
       if (index != this.poppedIndex) {
         if (this.previewAction == 'compare' && this.previewIndex == index) {
-          var dragValue = this.dragData.get('value')[0];
+          var dragValue = this.dragData.get('value');
+          if (isArray(dragValue)) dragValue = dragValue[0];
           this.renderListComparison(xpos, value, dragValue);
         } else {
           var sketch = this.renderListValue(xpos, value, index, false);

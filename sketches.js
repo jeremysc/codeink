@@ -1,3 +1,35 @@
+/* Sketches
+  initialize
+    - initialize the sketch
+    - trigger an assignment step
+
+  render
+    - redraw the list
+
+  fill
+    - fill a list element
+
+  getBoundingBox 
+    - shape
+    - rect
+    - circle
+
+  selectIfIntersects
+    - select list elements enclosed in the selection box
+    - trigger render
+
+  deselect
+    - deselect any selected list elements
+    - trigger render
+
+  intersects
+    - test for intersection with the entire list
+    - expand if there is an intersection
+
+  startDrag
+    - beginning of dragging a list element
+*/
+
 function lineDistance( point1, point2 )
 {
   var xs = 0;
@@ -126,239 +158,6 @@ var DatumSketch = Backbone.View.extend({
       clearTimeout(t);
     });
     this.timeouts = [];
-  }
-});
-
-var NumberSketch = DatumSketch.extend({
-  model: Number,
-
-  initialize: function(options) {
-    var self = this;
-
-    _.bindAll(this, 'render', 'renderValue', 'selectIfIntersects', 'moveTo', 'hide', 'show');
-    this.layer = options.layer;
-    this.globals = options.globals;
-    this.dragData = options.dragData;
-    this.sketch = null;
-    this.selected = false;
-
-    this.group = new Kinetic.Group({
-      name: this.model.getSymbol(),
-    });
-
-    if (self.model.getValue() == null) {
-      var value = prompt('Enter new value');
-      if (value != null) {
-        self.model.set({value: value});
-        var step = new Assignment({
-          variable: self.model,
-          value: value
-        });
-        self.model.trigger('step', {step: step});
-      }
-    } else {
-      var step = new Assignment({
-        variable: self.model,
-        value: self.model.getValue()
-      });
-      self.model.trigger('step', {step: step});
-    }
-
-    this.model.on('change', this.render);
-  },
-  
-  selectIfIntersects: function(rect) {
-    var selectRect = getRectCorners(rect);
-    var groupRect = getGroupRect(this.group);
-    var isSelected = intersectRect(selectRect, groupRect);
-    if (isSelected != this.selected) {
-      this.selected = isSelected;
-      if (this.selected) {
-        this.sketch.getTag().setStroke('red');
-      } else {
-        this.sketch.getTag().setStroke('black');
-      }
-      this.layer.draw();
-    }
-  },
-
-  render: function(event) {
-    var self = this;
-    this.group.removeChildren();
-    this.group.remove();
-    if (! this.model.get('visible')) {
-      this.layer.draw();
-      return;
-    }
-    var position = this.model.get('position');
-    this.group.setPosition(position);
-
-    // draggable label
-    var label = new Kinetic.Label({
-      x: 0,
-      y: -28,
-      opacity: 0.75,
-      name: 'label'
-    });
-    label.add(new Kinetic.Tag({
-      fill: 'yellow'
-    }));
-    label.add(new Kinetic.Text({
-      text: this.model.getSymbol(),
-      fontFamily: 'Helvetica',
-      fontSize: labelFontSize,
-      padding: 5,
-      fill: 'black'
-    }));
-    label.on("mouseover", function() {
-      self.group.setDraggable(true);
-      var tag = this.getTag();
-      tag.setStroke('black');
-      self.layer.draw();
-    });
-    label.on("mouseout", function() {
-      self.group.setDraggable(false);
-      var tag = this.getTag();
-      tag.setStroke('');
-      self.layer.draw();
-    });
-    /*
-    label.on("dblclick", function() {
-      var name = prompt('Enter new name:');
-      if (name != null) {
-        self.model.set({name: name});
-      }
-    });
-    */
-    this.group.add(label);
-
-    this.sketch = this.renderValue();
-
-    this.layer.add(this.group);
-    this.layer.draw();
-  },
-
-  renderValue: function() {
-    var self = this;
-
-    // draw the number 
-    var value = this.model.get('value');
-    sketch = new Kinetic.Label({
-      x: 0,
-      y: 0,
-      //draggable: true
-    });
-    sketch.add(new Kinetic.Tag({
-      strokeWidth: 3
-    }));
-    sketch.add(new Kinetic.Text({
-      text: value,
-      fontFamily: 'Helvetica',
-      fontSize: 35,
-      width: box_dim,
-      height: box_dim,
-      offsetY: -5,
-      align: 'center',
-      fill: 'black'
-    }));
-    sketch.on("mouseover", function() {
-      if (!self.selected) {
-        var tag = this.getTag();
-        tag.setStroke('red');
-        self.layer.draw();
-      }
-    });
-    sketch.on("mouseout", function() {
-      if (!self.selected) {
-        var tag = this.getTag();
-        tag.setStroke('black');
-        self.layer.draw();
-      }
-    });
-    sketch.on("click", function() {
-      self.mouseup = true;
-    });
-    sketch.on("dblclick", function() {
-      var value = prompt('Enter new value');
-      if (value != null) {
-        self.model.set({value: value});
-        var step = new Assignment({
-          variable: self.model,
-          value: value
-        });
-        self.model.trigger('step', {step: step});
-      }
-    });
-    sketch.on("mouseenter", function(event) {
-      if (self.dragData.get('dragging') && ! self.dragData.get('engaged') && self.dragData.get('src') != self) {
-        self.dragData.set({engaged: true});
-        // hide the sketch
-        self.dragData.get('sketch').hide();
-
-        self.origValue = self.model.get('value');
-        self.dragData.set({step: new Assignment({
-          variable: self.model,
-          value: self.dragData.get('expr')
-        })});
-        self.model.set({value: self.dragData.get('value')});
-      }
-      self.layer.draw();
-    });
-    sketch.on("mouseleave", function(event) {
-      if (self.dragData.get('dragging') && self.dragData.get('engaged')) {
-        self.dragData.set({engaged: false, step: null});
-        self.dragData.get('sketch').show();
-        self.model.set({value: self.origValue});
-      }
-      self.layer.draw();
-    });
-    var startDrag = function(event) {
-      if (self.mouseup) {
-        self.mouseup = false;
-        return;
-      }
-
-      // move the group to the bottom of siblings, so mouseenter events fire
-      console.log("HI");
-      self.group.moveToBottom();
-      
-      // get grab offset
-      var position = self.group.getPosition();
-      var offset = {x: event.offsetX - position.x,
-                    y: event.offsetY - position.y};
-      
-      self.dragData.set({
-        dragging: true,
-        expr: self.model,
-        sketch: self,
-        offset: offset,
-        src: self,
-        value: self.model.getValue()
-      });
-      self.layer.draw();
-    };
-
-    sketch.on("mousedown", _.debounce(startDrag, dragTimeout));
-
-    this.group.add(sketch);
-    return sketch;
-  },
-
-  moveTo: function(position, silent) {
-    this.group.setPosition(position);
-
-    if (silent != undefined || !silent)
-      this.layer.draw();
-  },
-
-  hide: function(silent) {
-    this.model.set({visible: false});
-  },
-
-  show: function(silent) {
-    this.model.set({visible: true});
-    // move the group to the bottom of siblings, so mouseenter events fire
-    this.group.moveToBottom();
   }
 });
 
