@@ -361,6 +361,7 @@ var CanvasView = Backbone.View.extend({
     step: null,
   */
   handleDrag: function(event) {
+    var self = this;
     // Get new position of the dragged object
     var offset = this.dragData.get('offset');
     var cursor = {x: event.offsetX, y: event.offsetY};
@@ -374,30 +375,6 @@ var CanvasView = Backbone.View.extend({
     var type = model.get('type');
     var dwelled = this.dragData.get('dwelled');
     var exited = this.dragData.get('exited');
-
-    // Get the bounding box for the dragged object 
-    kinetic.setPosition(position);
-    var bounds = getGroupRect(kinetic);
-
-    // Preview interactions with other objects, if any
-    var interacting = false;
-    for (var i = 0; i < this.sketches.length; i++) {
-      var otherSketch = this.sketches[i];
-      var otherModel = otherSketch.model;
-      if (otherSketch.previewInteraction(sketch, bounds)) {
-        interacting = true;
-        break;
-      } else {
-        otherSketch.hideInteractions();
-      }
-    }
-
-    if (! interacting) {
-      kinetic.show();
-      this.dragData.set({step: null});
-    }
-    this.layer.draw();
-    return;
 
     if (type == 'binary') {
       var nodeOffset = self.dragData.get('nodeOffset');
@@ -479,6 +456,33 @@ var CanvasView = Backbone.View.extend({
         // move the node (should move any subtrees)
         sketch.moveTo(position);
       }
+      return;
+    }
+
+    // Get the bounding box for the dragged object 
+    kinetic.setPosition(position);
+    var bounds = getGroupRect(kinetic);
+
+    // Preview interactions with other objects, if any
+    var interacting = false;
+    for (var i = 0; i < this.sketches.length; i++) {
+      var otherSketch = this.sketches[i];
+      var otherModel = otherSketch.model;
+      if (otherSketch.previewInteraction(sketch, bounds)) {
+        interacting = true;
+        break;
+      } else {
+        otherSketch.hideInteractions();
+      }
+    }
+
+    if (! interacting) {
+      kinetic.show();
+      this.dragData.set({step: null});
+    }
+    this.layer.draw();
+    return;
+    /*
     // TYPE: NODE
     } else if (sketch.model && sketch.model.get('type') == 'edge') {
       // look for intersections
@@ -493,14 +497,12 @@ var CanvasView = Backbone.View.extend({
         if (s.pointIntersectsNode(position)) {
           moveEdge = false;
           if (sketch.showAttachment(s, side)) {
-            /*
             var step = new EdgeAttachment({
               parent: s.model,
               side: side,
               child: sketch.model
             });
             self.dragData.set({step: step});
-            */
           }
         }
       }
@@ -511,6 +513,7 @@ var CanvasView = Backbone.View.extend({
     } else if (sketch.model && sketch.model.get('type') == 'num') {
       sketch.moveTo(position);
     }
+    */
   },
 
   handleRelease: function(event) {
@@ -524,6 +527,17 @@ var CanvasView = Backbone.View.extend({
     var kinetic = this.dragData.get('kinetic');
     var model = sketch.model;
     var type = model.get('type');
+    
+    if (type == 'binary') {
+      sketch.hideInsertion(true);
+      if (this.dragData.get('step') != null)
+        this.steps.trigger('step', {step:this.dragData.get('step')});
+      else
+        sketch.model.set({position: position});
+      this.dragData.set(this.dragData.defaults());
+      this.layer.draw();
+      return;
+    }
 
     if (type == 'list') {
       sketch.poppedIndex = null;
