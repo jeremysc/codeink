@@ -606,6 +606,9 @@ var ListSketch = DatumSketch.extend({
   },
 
   hideInteractions: function(silent) {
+    if (this.previewAction == null &&
+        ! this.expanded)
+      return;
     this.previewAction = null;
     this.previewIndex = null;
     this.collapse(silent);
@@ -625,9 +628,16 @@ var ListSketch = DatumSketch.extend({
     var index = Math.floor(offset / box_dim);
     var action = (index % 2 != 0) ? 'compare' : 'insert';
     index = Math.floor(index / 2);
-    if (index == this.poppedIndex ||
-        (index == this.poppedIndex + 1 && action == 'insert'))
+    if (this.poppedIndex != null) {
+      if (index == this.poppedIndex ||
+          (index == this.poppedIndex + 1 && action == 'insert'))
+        return {action: null, index: null};
+    }
+    if (action == 'compare' && index >= this.model.get('values').length)
       return {action: null, index: null};
+    if (index < 0)
+      return {action: null, index: null};
+
     return {action: action, index: index};
   }
 });
