@@ -408,7 +408,13 @@ var ListSketch = DatumSketch.extend({
 
         self.addTimeout(self.startDrag, 150, event);
         self.addTimeout(function() {
-          console.log('dwelled');
+          self.model.pop(index);
+          // modify the expression to be a pop
+          var expr = new Pop({list: self.model, index: index});
+          self.dragData.set({dwelled: true, expr: expr});
+          self.expanded = true;
+          self.expansionPoint = event.offsetX;
+          self.render();
         }, 1000);
       });
     }
@@ -489,6 +495,7 @@ var ListSketch = DatumSketch.extend({
         // If exited, then update dragData and make the copy
         if (!intersectRect(dragBounds, bounds)) {
           this.dragData.set({exited: true});
+          this.clearTimeouts();
 
           // Re-render to make a copy
           this.render();
