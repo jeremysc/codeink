@@ -525,12 +525,16 @@ var CanvasView = Backbone.View.extend({
     var model = sketch.model;
     var type = model.get('type');
 
-    var name = this.getNewDatumName(type);
 
+    // Trigger the previewed step, if it exists
     var step = this.dragData.get('step');
     if (step != null)
       this.steps.trigger('step', {step: step});
+
+    // Otherwise, handle the release onto the background
+    // Usually means creating a new datum
     else {
+      var name = this.getNewDatumName(type);
       switch (type) {
         case "list":
           var dragExpr = this.dragData.get('expr');
@@ -543,8 +547,6 @@ var CanvasView = Backbone.View.extend({
             values: dragValues,
             expr: dragExpr
           }));
-          // Destroy the dragged Kinetic shapes
-          kinetic.destroy();
           break;
 
         default:
@@ -552,7 +554,14 @@ var CanvasView = Backbone.View.extend({
           break;
       }
     }
+    
+    // Hide interactions
+    for (var i = 0; i < this.sketches.length; i++)
+      this.sketches[i].hideInteractions();
 
+    // Destroy the dragged Kinetic shapes
+    kinetic.destroy();
+    // Reset the dragData object
     this.dragData.set(this.dragData.defaults());
     //this.layer.draw();
     return;

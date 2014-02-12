@@ -190,8 +190,13 @@ var ListSketch = DatumSketch.extend({
     var values = this.model.get('values');
     for (var index = 0; index < values.length; index++) {
       var value = values[index];
-      var sketch = this.renderListValue(xpos, value, index, false);
-      this.sketches.push(sketch);
+      if (this.previewAction == 'compare' && this.previewIndex == index) {
+        var dragValue = this.dragData.get('value')[0];
+        this.renderListComparison(xpos, value, dragValue);
+      } else {
+        var sketch = this.renderListValue(xpos, value, index, false);
+        this.sketches.push(sketch);
+      }
       xpos += box_dim+shift_by;
     }
 
@@ -261,6 +266,58 @@ var ListSketch = DatumSketch.extend({
     this.group.add(label);
   },
 
+  renderListComparison: function(x, value, dragValue) {
+    // Draw a box 1.5*box_dim wide,
+    // centered where the original value would have been
+    var oldMiddle = x + box_dim / 2;
+    x = oldMiddle - 0.75*box_dim;
+    var sketch = new Kinetic.Label({
+      x: x,
+    });
+    sketch.add(new Kinetic.Tag({
+      strokeWidth: 3
+    }));
+
+    var first = (value <= dragValue) ? value : dragValue;
+    var second = (value > dragValue) ? value : dragValue;
+    var operator = (value == dragValue) ? "=" : "<";
+    var isFirst = (value > dragValue);
+    
+    sketch.add(new Kinetic.Text({
+      text: first,
+      fontFamily: 'Helvetica',
+      fontSize: 30,
+      width: box_dim*1.5,
+      height: box_dim,
+      offsetX: box_dim*0.4,
+      offsetY: -7.5,
+      align: 'center',
+      fill: isFirst ? '#46b6ec' : 'black'
+    }));
+    sketch.add(new Kinetic.Text({
+      text: operator,
+      fontFamily: 'Helvetica',
+      fontSize: 30,
+      width: box_dim*1.5,
+      height: box_dim,
+      offsetY: -7.5,
+      align: 'center',
+      fill: 'black'
+    }));
+    sketch.add(new Kinetic.Text({
+      text: second,
+      fontFamily: 'Helvetica',
+      fontSize: 30,
+      width: box_dim*1.5,
+      height: box_dim,
+      offsetX: -box_dim*0.4,
+      offsetY: -7.5,
+      align: 'center',
+      fill: isFirst ? 'black' : '#46b6ec'
+    }));
+    this.group.add(sketch);
+  },
+      
   // Draw a list value
   renderListValue: function(x, value, index, isPreview) {
     var self = this;
@@ -272,46 +329,18 @@ var ListSketch = DatumSketch.extend({
     sketch.add(new Kinetic.Tag({
       strokeWidth: 3
     }));
-    if (this.previewAction == 'compare' && this.previewIndex == index) {
-      var dragValue = this.dragData.get('value')[0];
-      var first = (value <= dragValue) ? value : dragValue;
-      var second = (value > dragValue) ? value : dragValue;
-      var operator = (value == dragValue) ? "=" : "<";
-      var isFirst = (value > dragValue);
-      sketch.add(new Kinetic.Text({
-        text: first + operator,
-        fontFamily: 'Helvetica',
-        fontSize: 20,
-        width: box_dim,
-        height: box_dim,
-        offsetX: box_dim/2,
-        offsetY: -5,
-        align: 'center',
-        fill: isFirst ? '#46b6ec' : 'black'
-      }));
-      sketch.add(new Kinetic.Text({
-        text: second,
-        fontFamily: 'Helvetica',
-        fontSize: 20,
-        width: box_dim,
-        height: box_dim,
-        offsetY: -5,
-        align: 'center',
-        fill: isFirst ? 'black' : '#46b6ec'
-      }));
-    } else {
-      sketch.add(new Kinetic.Text({
-        text: value,
-        fontFamily: 'Helvetica',
-        fontSize: 35,
-        width: box_dim,
-        height: box_dim,
-        offsetY: -5,
-        align: 'center',
-        fill: 'black'
-      }));
-    }
-    if (! isPreview) {
+    sketch.add(new Kinetic.Text({
+      text: value,
+      fontFamily: 'Helvetica',
+      fontSize: 35,
+      width: box_dim,
+      height: box_dim,
+      offsetY: -5,
+      align: 'center',
+      fill: 'black'
+    }));
+
+    if (!isPreview) {
       // Highlight on hover, if not selected
       sketch.on("mouseover", function() {
         if (self.numSelected == 0) {
@@ -499,10 +528,21 @@ var ListSketch = DatumSketch.extend({
         this.previewAction = action;
         this.previewIndex = actionIndex;
         var kinetic = this.dragData.get('kinetic');
-        if (this.previewAction == null)
+        if (this.previewAction == null) {
           kinetic.show();
-        else
+          this.dragData.set({step: null});
+        } else if (this.previewAction == 'insert') {
+          this.dragData.set({
+            step: new Insert({
+              list: this.model,
+              index: this.previewIndex,
+              value: this.dragData.get('expr'),
+            })
+          });
           kinetic.hide();
+        } else if (this.previewAction == 'compare') {
+          kinetic.hide();
+        }
         this.render();
       }
       return (action != null);
