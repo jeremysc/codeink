@@ -182,7 +182,9 @@ var ListSketch = DatumSketch.extend({
     if (this.previewAction == 'insert') {
       var x = this.outline.getPosition().x + 
               this.previewIndex*(box_dim+shift_by);
-      this.renderListValue(x, this.dragData.get('value'), this.previewIndex, true);
+      var sketch = this.renderListValue(x, this.dragData.get('value'), this.previewIndex, true);
+      sketch.getTag().setStroke('red');
+      sketch.getText().setFill('#46b6ec');
     }
 
     // Render each list element
@@ -275,6 +277,7 @@ var ListSketch = DatumSketch.extend({
       x: x,
     });
     sketch.add(new Kinetic.Tag({
+      stroke: 'red',
       strokeWidth: 3
     }));
 
@@ -541,6 +544,13 @@ var ListSketch = DatumSketch.extend({
           });
           kinetic.hide();
         } else if (this.previewAction == 'compare') {
+          var step = new Compare({
+            drag: this.dragData.get('expr'),
+            against: new ListVarExpr({list: this.model, index: this.previewIndex}),
+            dragSketch: dragSketch,
+            againstSketch: this
+          });
+          this.model.trigger('step', {step: step});
           kinetic.hide();
         }
         this.render();
