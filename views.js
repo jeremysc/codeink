@@ -192,9 +192,7 @@ var CanvasView = Backbone.View.extend({
         y: 0,
         width: this.stageWidth,
         height: this.stageHeight,
-        fill: '#E8E8E8',
-        stroke: 'black',
-        strokeWidth: 1
+        fill: '#E8E8E8'
     });
     var backLayer = new Kinetic.Layer();
     backLayer.add(background);
