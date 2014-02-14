@@ -5,6 +5,7 @@ var NumberSketch = DatumSketch.extend({
     var self = this;
     _.bindAll(this, 'remove', 'render', 'renderValue', 'selectIfIntersects', 'deselect', 'startDrag', 'previewInteraction', 'hideInteractions');
     this.timeouts = [];
+    this.intervals = [];
 
     // Standard global variables
     this.layer = options.layer;

@@ -3,8 +3,9 @@ var ListSketch = DatumSketch.extend({
 
   initialize: function(options) {
     var self = this;
-    _.bindAll(this, 'remove', 'render', 'fill', 'selectIfIntersects', 'deselect', 'startDrag', 'previewInteraction', 'hideInteractions', 'getInteraction', 'showComparison', 'hideComparison');
+    _.bindAll(this, 'remove', 'render', 'fill', 'selectIfIntersects', 'deselect', 'startDrag', 'previewInteraction', 'hideInteractions', 'getInteraction', 'showComparison', 'hideComparison', 'cancelDwell');
     this.timeouts = [];
+    this.intervals = [];
 
     // Standard global variables
     this.layer = options.layer;
@@ -80,6 +81,15 @@ var ListSketch = DatumSketch.extend({
     this.layer.draw();
   },
 
+  cancelDwell: function() {
+    this.clearTimeouts();
+    this.clearIntervals();
+    if (this.dwellCircle && this.dwellCircle != null) {
+      this.dwellCircle.remove();
+      this.dwellCircle = null;
+    }
+  },
+  
   selectIfIntersects: function(rect) {
     var self = this;
     var selectRect = getRectCorners(rect);
@@ -401,7 +411,7 @@ var ListSketch = DatumSketch.extend({
       sketch.on("click", function() {
         self.selectLeft = null;
         self.numSelected = 0;
-        self.clearTimeouts();
+        self.cancelDwell();
         /*
         if (self.state.filling()) {
           var step = new Fill({
@@ -421,7 +431,7 @@ var ListSketch = DatumSketch.extend({
       sketch.on("dblclick", function() {
         self.selectLeft = null;
         self.numSelected = 0;
-        self.clearTimeouts();
+        self.cancelDwell();
         var value = prompt('Enter new value');
         if (value != null) {
           var values = self.model.get('values');
@@ -444,7 +454,36 @@ var ListSketch = DatumSketch.extend({
           self.numSelected = 1;
         }
 
+        // Timer to start the drag
         self.addTimeout(self.startDrag, 150, event);
+        // Interval to animate the dwell state
+        self.addInterval(function() {
+          if (!self.dwellCircle || self.dwellCircle == null) {
+            self.dwellCircle = new Kinetic.Wedge({
+              x: event.offsetX,
+              y: event.offsetY - 50,
+              radius: 10,
+              angle: 0,
+              fill: '#46b6ec',
+              stroke: null,
+            });
+            self.dwellAngle = 0;
+            self.layer.add(self.dwellCircle);
+            self.layer.draw();
+          } else if (self.dwellAngle >= 2*Math.PI) {
+            self.clearIntervals();
+
+            self.dwellCircle.remove();
+            self.dwellCircle = null;
+            self.layer.draw();
+          } else {
+            self.dwellAngle += 2*Math.PI / 20;
+            self.dwellCircle.setAngle(self.dwellAngle);
+            self.dwellCircle.moveToTop();
+            self.layer.draw();
+          }
+        }, 42);
+        // Timer to flag dwell state
         self.addTimeout(function() {
           // if exited, ignore the dwell
           // shouldn't happen if exit clears the timeout
@@ -554,7 +593,7 @@ var ListSketch = DatumSketch.extend({
         // If exited, then update dragData and make the copy
         if (!intersectRect(dragBounds, bounds)) {
           this.dragData.set({exited: true});
-          this.clearTimeouts();
+          this.cancelDwell();
 
           // Re-render to make a copy
           this.render();

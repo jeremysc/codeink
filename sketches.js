@@ -160,6 +160,19 @@ var DatumSketch = Backbone.View.extend({
     this.timeouts = [];
   },
   
+  addInterval: function(callback, delay, args) {
+    this.intervals.push(setInterval(function() {
+      callback(args);
+    }, delay, this));
+  },
+
+  clearIntervals: function() {
+    this.intervals.map(function(t) {
+      clearInterval(t);
+    });
+    this.intervals = [];
+  },
+  
   remove: function() {
     this.group.destroy();
     this.layer.draw();
@@ -211,6 +224,7 @@ var BinaryNodeSketch = DatumSketch.extend({
     this.otherNode = null;
     this.dragNode = null;
     this.timeouts = [];
+    this.intervals = [];
 
     this.left = null;
     this.right = null;
@@ -694,6 +708,7 @@ var EdgeSketch = DatumSketch.extend({
     this.model.trigger('step', {step: step});
 
     this.timeouts = [];
+    this.intervals = [];
 
     this.start = null; 
     this.end = null; 
