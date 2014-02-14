@@ -408,7 +408,12 @@ var ActiveStep = Backbone.Model.extend({
   // Index in Trace collection: 0 to G-1
   // each TraceStep has trace.line between 1 and N
 
-  defaults: {step: new Step(), line: 0}
+  defaults: function() {
+    return {
+      step: new Step(),
+      line: 0
+    };
+  }
 });
 
 var Steps = Backbone.Collection.extend({
@@ -425,6 +430,7 @@ var Assignment = Step.extend({
     },
     variable: null,
     value: null,
+    isInitialization: false,
     position: {x: 0, y: 0}
   }
 });

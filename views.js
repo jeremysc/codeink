@@ -761,6 +761,9 @@ var StepsView = Backbone.View.extend({
         self.activeStep.set({step: step, line: line});
         self.updateDataFromTrace();
         return true;
+      } else if (line == 1 && self.steps.isEmpty()) {
+        self.activeStep.set(self.activeStep.defaults());
+        self.updateDataFromTrace();
       }
       return false;
     };
@@ -776,10 +779,22 @@ var StepsView = Backbone.View.extend({
       }
       return false;
     };
+
+    this.undo = function() {
+      var step = self.steps.remove(self.steps.last());
+      // remove the datum if it it was an initialization
+      if (step.get('action') == 'assignment' && step.get('isInitialization')) {
+        var datum = step.get('variable');
+        self.data.remove(datum);
+        datum.destroy();
+      }
+      self.stepBack();
+    };
     
     // buttons
     $("#back").click(this.stepBack);
     $("#forward").click(this.stepForward);
+    $("#undo").click(this.undo);
     $("#unindent").click(function() {
       self.steps.trigger('step', {indent:-1});
     });
@@ -790,6 +805,9 @@ var StepsView = Backbone.View.extend({
           return;
         case 39:
           self.stepForward();
+          return;
+        case 90: //ctrl+z = undo
+          self.undo();
           return;
         case 83: //s
         case 68: //d

@@ -3,7 +3,7 @@ var ListSketch = DatumSketch.extend({
 
   initialize: function(options) {
     var self = this;
-    _.bindAll(this, 'render', 'fill', 'selectIfIntersects', 'deselect', 'startDrag', 'previewInteraction', 'hideInteractions', 'getInteraction');
+    _.bindAll(this, 'remove', 'render', 'fill', 'selectIfIntersects', 'deselect', 'startDrag', 'previewInteraction', 'hideInteractions', 'getInteraction');
     this.timeouts = [];
 
     // Standard global variables
@@ -29,7 +29,8 @@ var ListSketch = DatumSketch.extend({
       this.model.set({values: values});
       var step = new Assignment({
         variable: this.model,
-        value: this.model.getValue()
+        value: this.model.getValue(),
+        isInitialization: true
       });
       this.model.trigger('step', {step: step});
     // List is a copy of some other values
@@ -47,7 +48,8 @@ var ListSketch = DatumSketch.extend({
       }
       var step = new Assignment({
         variable: this.model,
-        value: expr
+        value: expr,
+        isInitialization: true
       });
       this.model.trigger('step', {step: step});
     }
@@ -65,6 +67,7 @@ var ListSketch = DatumSketch.extend({
 
     // Bind model change and fill events
     this.model.on('change', this.render);
+    this.model.on('destroy', this.remove);
     this.model.on('fill', this.fill);
   },
   

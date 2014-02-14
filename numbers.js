@@ -3,7 +3,7 @@ var NumberSketch = DatumSketch.extend({
 
   initialize: function(options) {
     var self = this;
-    _.bindAll(this, 'render', 'renderValue', 'selectIfIntersects', 'deselect', 'startDrag', 'previewInteraction', 'hideInteractions');
+    _.bindAll(this, 'remove', 'render', 'renderValue', 'selectIfIntersects', 'deselect', 'startDrag', 'previewInteraction', 'hideInteractions');
     this.timeouts = [];
 
     // Standard global variables
@@ -24,7 +24,8 @@ var NumberSketch = DatumSketch.extend({
         self.model.set({value: value});
         var step = new Assignment({
           variable: self.model,
-          value: value
+          value: value,
+          isInitialization: true
         });
         self.model.trigger('step', {step: step});
       }
@@ -32,7 +33,8 @@ var NumberSketch = DatumSketch.extend({
     } else {
       var step = new Assignment({
         variable: self.model,
-        value: self.model.getValue()
+        value: self.model.getValue(),
+        isInitialization: true
       });
       self.model.trigger('step', {step: step});
     }
@@ -51,6 +53,7 @@ var NumberSketch = DatumSketch.extend({
     // Bind model change and fill events
     this.model.on('change', this.render);
     this.model.on('fill', this.fill);
+    this.model.on('destroy', this.remove);
   },
   
   fill: function(options) {
@@ -77,7 +80,7 @@ var NumberSketch = DatumSketch.extend({
   deselect: function() {
     this.selected = false;
   },
-
+  
   render: function(event) {
     var self = this;
 
