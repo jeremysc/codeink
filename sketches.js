@@ -238,6 +238,7 @@ var BinaryNodeSketch = DatumSketch.extend({
   showComparison: function(dragSketch) {
     if (this.comparing)
       return false;
+    
     this.comparing = true;
     this.otherNode = dragSketch;
     this.otherNode.comparing = true;
@@ -253,7 +254,7 @@ var BinaryNodeSketch = DatumSketch.extend({
     this.comparing = false;
     this.otherNode.comparing = false;
     this.otherNode.otherNode = null;
-    if (silent != undefined || !silent) {
+    if (silent == undefined || !silent) {
       this.render();
       this.otherNode.render();
     }
@@ -312,7 +313,7 @@ var BinaryNodeSketch = DatumSketch.extend({
     this.following = false;
     this.followSide = null;
     this.dragNode.following = false;
-    if (silent != undefined || !silent) {
+    if (silent == undefined || !silent) {
       this.render();
       this.dragNode.render();
     }
@@ -658,7 +659,7 @@ var BinaryNodeSketch = DatumSketch.extend({
     if (this.right != null)
       this.right.moveTo(this.getInsertionPoint('right'), true);
 
-    if (silent != undefined || !silent)
+    if (silent == undefined || !silent)
       this.layer.draw();
   },
 

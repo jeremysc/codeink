@@ -3,7 +3,7 @@ var ListSketch = DatumSketch.extend({
 
   initialize: function(options) {
     var self = this;
-    _.bindAll(this, 'remove', 'render', 'fill', 'selectIfIntersects', 'deselect', 'startDrag', 'previewInteraction', 'hideInteractions', 'getInteraction');
+    _.bindAll(this, 'remove', 'render', 'fill', 'selectIfIntersects', 'deselect', 'startDrag', 'previewInteraction', 'hideInteractions', 'getInteraction', 'showComparison', 'hideComparison');
     this.timeouts = [];
 
     // Standard global variables
@@ -69,6 +69,9 @@ var ListSketch = DatumSketch.extend({
     this.model.on('change', this.render);
     this.model.on('destroy', this.remove);
     this.model.on('fill', this.fill);
+
+    this.model.on('showComparison', this.showComparison);
+    this.model.on('hideComparison', this.hideComparison);
   },
   
   fill: function(options) {
@@ -105,6 +108,63 @@ var ListSketch = DatumSketch.extend({
   deselect: function() {
     this.numSelected = 0;
     this.selectLeft = null;
+  },
+
+    /*
+      // Show comparison
+      - If dragging, exit
+      - Set the poppedIndex if necessary
+      - set previewAction to compare
+      - set previewIndex
+      - Expand around the midpoint
+    
+      Hide comparison
+      - If dragging, exit
+      - Set everything to null
+      - Collapse
+    */
+
+  showComparison: function(compare) {
+    if (this.dragData.get('dragging'))
+      return;
+   
+    var dragSketch = compare.get('dragSketch');
+    var dragExpr = compare.get('drag');
+    var value = compare.get('value');
+    
+    if (dragExpr.get('action') == 'pop') {
+      var popFrom = dragExpr.get('list');
+      var popIndex = dragExpr.get('index');
+      dragSketch.poppedIndex = popIndex;
+      if (popFrom.getSymbol() != this.model.getSymbol())
+        dragSketch.render();
+    }
+
+    var againstExpr = compare.get('against');
+    this.previewAction = 'compare';
+    this.previewIndex = againstExpr.get('index');
+    this.previewValue = value;
+    this.expand(this.group.getPosition().x);
+  },
+  
+  hideComparison: function(compare) {
+    if (this.dragData.get('dragging'))
+      return;
+   
+    var dragSketch = compare.get('dragSketch');
+    var dragExpr = compare.get('drag');
+    
+    if (dragExpr.get('action') == 'pop') {
+      var popFrom = dragExpr.get('list');
+      dragSketch.poppedIndex = null;
+      if (popFrom.getSymbol() != this.model.getSymbol())
+        dragSketch.render();
+    }
+
+    this.previewAction = null;
+    this.previewIndex = null;
+    this.previewValue = null;
+    this.collapse();
   },
   
   // Re-render the sketch
@@ -166,7 +226,7 @@ var ListSketch = DatumSketch.extend({
       var value = values[index];
       if (index != this.poppedIndex) {
         if (this.previewAction == 'compare' && this.previewIndex == index) {
-          var dragValue = this.dragData.get('value');
+          var dragValue = (this.dragData.get('dragging')) ? this.dragData.get('value') : this.previewValue;
           if (isArray(dragValue)) dragValue = dragValue[0];
           this.renderListComparison(xpos, value, dragValue);
         } else {
@@ -572,7 +632,8 @@ var ListSketch = DatumSketch.extend({
                 index: this.previewIndex
               }),
               dragSketch: dragSketch,
-              againstSketch: this
+              againstSketch: this,
+              value: this.dragData.get('value')
             });
             this.model.trigger('step', {step: step});
             kinetic.hide();

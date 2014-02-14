@@ -420,6 +420,7 @@ var CanvasView = Backbone.View.extend({
           moveNode = false;
           var side = s.intersectsPointer(nodePosition);
           if (s.showFollow(sketch, side)) {
+            s.hideComparison();
             var step = new Follow({
               drag: sketch.model,
               from: s.model,
@@ -1020,14 +1021,27 @@ var StepsView = Backbone.View.extend({
     });
 
     // update comparisons
+    // hide any other comparisons
     this.steps.each(function(step, index) {
       if (step.get('action') == 'compare' &&
-          index != self.activeStep.get('line')-1)
-          step.get('against').trigger('hideComparison');
+          index != self.activeStep.get('line')-1) {
+          var against =  step.get('against');
+          if (against.has('list'))
+            against = against.get('list');
+          against.trigger('hideComparison', step);
+      }
     });
+    // show the current step's comparison
     var step = this.activeStep.get('step');
-    if (step.get('action') == 'compare')
-      step.get('against').trigger('showComparison', step.get('dragSketch'));
+    if (step.get('action') == 'compare') {
+      var against =  step.get('against');
+      if (against.has('list')) {
+        against = against.get('list');
+      } else if (against.get('type') == 'binary') {
+        step = step.get('dragSketch');
+      }
+      against.trigger('showComparison', step);
+    }
     
     // update follows
     this.steps.each(function(step, index) {
