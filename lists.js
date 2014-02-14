@@ -473,8 +473,8 @@ var ListSketch = DatumSketch.extend({
   },
 
   previewInteraction: function(dragSketch, dragBounds) {
-    var exitThresh = box_dim/2;
-    var enterThresh = box_dim/4;
+    var exitThresh = box_dim*0.75;
+    var enterThresh = box_dim/2;
     var dwelled = this.dragData.get('dwelled');
     var exited = this.dragData.get('exited');
 
@@ -498,6 +498,7 @@ var ListSketch = DatumSketch.extend({
 
           // Re-render to make a copy
           this.render();
+          return true;
         // Haven't dwelled or exited yet
         } else {
           return true;
@@ -511,68 +512,75 @@ var ListSketch = DatumSketch.extend({
       return false;
     }
 
-    // Setup the entrance bounds
+    // If not expanded, then check if entered
+    // and expand if so
     if (!this.expanded) {
       bounds.left   -= enterThresh;
       bounds.right  += enterThresh;
       bounds.top    -= enterThresh;
       bounds.bottom += enterThresh;
-    }
 
-    if (intersectRect(dragBounds, bounds)) {
-      // Expand the list, if not already expanded
-      if (!this.expanded) {
+      if (intersectRect(dragBounds, bounds)) {
+        // Expand the list, if not already expanded
         var dragCenter = dragBounds.left + 
                         (dragBounds.right - dragBounds.left)/2;
         this.expand(dragCenter);
+        return true;
       }
+    } else {
+      bounds.left   -= exitThresh;
+      bounds.right  += exitThresh;
+      bounds.top    -= exitThresh;
+      bounds.bottom += exitThresh;
 
-      // Preview any comparisons or insertions
-      var interaction = this.getInteraction(dragBounds);
-      var action = interaction.action;
-      var actionIndex = interaction.index;
-      // Only allow re-rendering if there's a change in the preview state
-      if (this.previewAction != action || this.previewIndex != actionIndex) {
-        this.previewAction = action;
-        this.previewIndex = actionIndex;
-        var kinetic = this.dragData.get('kinetic');
+      if (intersectRect(dragBounds, bounds)) {
+        // Preview any comparisons or insertions
+        var interaction = this.getInteraction(dragBounds);
+        var action = interaction.action;
+        var actionIndex = interaction.index;
+        // Only allow re-rendering if there's a change in the preview state
+        if (this.previewAction != action || this.previewIndex != actionIndex) {
+          this.previewAction = action;
+          this.previewIndex = actionIndex;
+          var kinetic = this.dragData.get('kinetic');
 
-        // If no preview required, then make it a no-op
-        // and show the original Kinetic shape
-        if (this.previewAction == null) {
-          kinetic.show();
-          this.dragData.set({step: null});
-        // Preview an insert
-        // Have to adjust the index if doing a re-arrangement
-        } else if (this.previewAction == 'insert') {
-          var index = (this.poppedIndex != null
-            && this.poppedIndex < this.previewIndex) ? 
-            this.previewIndex - 1 : this.previewIndex;
-          this.dragData.set({
-            step: new Insert({
-              list: this.model,
-              index: index,
-              value: this.dragData.get('expr'),
-            })
-          });
-          kinetic.hide();
-        // Preview and commit a comparison
-        } else if (this.previewAction == 'compare') {
-          var step = new Compare({
-            drag: this.dragData.get('expr'),
-            against: new ListVarExpr({
-              list: this.model,
-              index: this.previewIndex
-            }),
-            dragSketch: dragSketch,
-            againstSketch: this
-          });
-          this.model.trigger('step', {step: step});
-          kinetic.hide();
+          // If no preview required, then make it a no-op
+          // and show the original Kinetic shape
+          if (this.previewAction == null) {
+            kinetic.show();
+            this.dragData.set({step: null});
+          // Preview an insert
+          // Have to adjust the index if doing a re-arrangement
+          } else if (this.previewAction == 'insert') {
+            var index = (this.poppedIndex != null
+              && this.poppedIndex < this.previewIndex) ? 
+              this.previewIndex - 1 : this.previewIndex;
+            this.dragData.set({
+              step: new Insert({
+                list: this.model,
+                index: index,
+                value: this.dragData.get('expr'),
+              })
+            });
+            kinetic.hide();
+          // Preview and commit a comparison
+          } else if (this.previewAction == 'compare') {
+            var step = new Compare({
+              drag: this.dragData.get('expr'),
+              against: new ListVarExpr({
+                list: this.model,
+                index: this.previewIndex
+              }),
+              dragSketch: dragSketch,
+              againstSketch: this
+            });
+            this.model.trigger('step', {step: step});
+            kinetic.hide();
+          }
+          this.render();
         }
-        this.render();
+        return true;
       }
-      return true;
     }
     return false;
   },
