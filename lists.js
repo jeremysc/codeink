@@ -572,8 +572,9 @@ var ListSketch = DatumSketch.extend({
   },
 
   previewInteraction: function(dragSketch, dragBounds) {
+    var firstExitThresh = box_dim*0.5;
     var exitThresh = box_dim*0.75;
-    var enterThresh = box_dim/2;
+    var enterThresh = box_dim*0.4;
     var dwelled = this.dragData.get('dwelled');
     var exited = this.dragData.get('exited');
 
@@ -586,8 +587,8 @@ var ListSketch = DatumSketch.extend({
         var bounds = {
           left: originalBounds.left,
           right: originalBounds.right,
-          top: originalBounds.top - exitThresh,
-          bottom: originalBounds.bottom + exitThresh
+          top: originalBounds.top - firstExitThresh,
+          bottom: originalBounds.bottom + firstExitThresh
         };
 
         // If exited, then update dragData and make the copy
