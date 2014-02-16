@@ -28,18 +28,22 @@
 
 <div id="codeinkapp">
   <nav class="navbar navbar-default" role="navigation">
-    <div class="navbar-header">
-      <a class="navbar-brand" href="#">codeink</a>
-    </div>
+    <ul id="data" class="nav navbar-nav">
+      <li class="active"><a class="navbar-brand" href="#">codeink</a></li>
+      <li id="data-header"><a class="navbar-brand">data</a></li>
+      <li><button id="num" class="btn navbar-btn btn-primary add-data" type="button" draggable="true">number</button></li>
+      <li><button id="list" class="btn navbar-btn btn-primary add-data" type="button" draggable="true">list</button></li>
+      <li><button id="binary" class="btn navbar-btn btn-primary add-data" type="button" draggable="true">binary node</button></li>
+      <li><button id="node" class="btn navbar-btn btn-primary add-data" type="button" draggable="true">node</button></li>
+      <!--
+      <button id="edge" class="btn btn-md btn-primary add-data" type="button" draggable="true">edge</button>
+      -->
+    </ul>
   </nav>
 
   <div id="main">
     <div class="row">
-      <div class="col-xs-1">
-        <div id="palette">
-        </div>
-      </div>
-      <div id="right-pane" class="col-xs-8">
+      <div id="right-pane" class="col-xs-9">
         <div id="stage"></div>
       </div>
       <div class="col-xs-3">
@@ -64,27 +68,6 @@
       <input type="text" class="form-control" value="#79c2f7">
       <span class="input-group-addon"><i></i></span>
     </div>
-  </div>    
-  <div id="data">
-    <h3>data<br/>
-    <small>drag onto canvas</small></h3>
-    <div class="row"><div class="col-xs-12">
-      <button id="num" class="btn btn-md btn-primary add-data" type="button" draggable="true">number</button>
-    </div></div>
-    <div class="row"><div class="col-xs-12">
-      <button id="list" class="btn btn-md btn-primary add-data" type="button" draggable="true">list</button>
-    </div></div>
-    <div class="row"><div class="col-xs-12">
-      <button id="binary" class="btn btn-md btn-primary add-data" type="button" draggable="true">binary node</button>
-    </div></div>
-    <div class="row"><div class="col-xs-12">
-      <button id="node" class="btn btn-md btn-primary add-data" type="button" draggable="true">node</button>
-    </div></div>
-    <!--
-    <div class="row"><div class="col-xs-12">
-      <button id="edge" class="btn btn-md btn-primary add-data" type="button" draggable="true">edge</button>
-    </div></div>
-    -->
   </div>    
 </script>
 
