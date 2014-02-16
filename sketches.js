@@ -501,6 +501,19 @@ var BinaryNodeSketch = DatumSketch.extend({
         align: 'center',
         fill: 'black'
       });
+      // Highlight on hover, if not selected
+      this.node.on("mouseover", function() {
+        if (!self.selected && !self.dragData.get('dragging')) {
+          this.setStroke('red');
+          self.layer.draw();
+        }
+      });
+      this.node.on("mouseout", function() {
+        if (!self.selected && !self.dragData.get('dragging')) {
+          this.setStroke('black');
+          self.layer.draw();
+        }
+      });
       this.node.on("dblclick", function() {
         self.clearTimeouts();
         var value = prompt('Enter new value');
