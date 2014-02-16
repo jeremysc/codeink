@@ -334,6 +334,18 @@ var AttrExpr = Expr.extend({
   },
 });
 
+var InfinityExpr = Expr.extend({
+  defaults: function() {
+    return {
+      parts: {
+        'python': ['float("inf")'],
+        'english': ['infinity']
+      },
+      type: "inf"
+    };
+  },
+});
+
 // ---------------
 // STEPS
 // an extended expression with indentation

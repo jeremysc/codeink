@@ -23,10 +23,15 @@ var NodeSketch = DatumSketch.extend({
     if (this.model.getValue() == null) {
       var value = prompt('Enter new value');
       if (value != null) {
+        var valExpr = value;
+        if (value == 'inf') {
+          value = Infinity;
+          valExpr = new InfinityExpr();
+        }
         this.model.set({value: value});
         var step = new Assignment({
           variable: this.model,
-          value: new NodeExpr({value: this.model.getValue()}),
+          value: new NodeExpr({value: valExpr}),
           isInitialization: true
         });
         this.model.trigger('step', {step: step});
@@ -76,7 +81,6 @@ var NodeSketch = DatumSketch.extend({
       this.dwellCircle = null;
     }
   },
-  
   
   pointIntersectsNode: function(dragPosition) {
     var groupPosition = this.group.getPosition();
@@ -140,8 +144,10 @@ var NodeSketch = DatumSketch.extend({
   // Render just the node's value
   renderValue: function() {
     var self = this;
-    var value = this.model.get('value');
     var previewAssign = (this.previewAction == 'assign');
+    var value = (previewAssign) ? this.previewValue : this.model.get('value');
+    var textValue = (value == Infinity) ? '∞' : value;
+
     this.node = new Kinetic.Circle({
       name: 'circle',
       x: node_dim/2,
@@ -151,7 +157,7 @@ var NodeSketch = DatumSketch.extend({
       strokeWidth: 3
     });
     this.text = new Kinetic.Text({
-      text: (previewAssign) ? this.previewValue : value,
+      text: textValue,
       fontFamily: 'Helvetica',
       fontSize: 35,
       width: node_dim,
@@ -266,6 +272,11 @@ var NodeSketch = DatumSketch.extend({
     }
     if (value == otherValue)
       operator = "=";
+    if (value == Infinity)
+      value = '∞';
+    if (otherValue == Infinity)
+      otherValue = '∞';
+
     var node = new Kinetic.Circle({
       x: thisPosition.x,
       y: thisPosition.y,

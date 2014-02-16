@@ -838,7 +838,21 @@ var StepsView = Backbone.View.extend({
               self.trace.reset(trace);
             }
           },
-          "json");
+          "json").fail(function(dataFromBackend) {
+            var response = dataFromBackend.responseText;
+            response = response.replace(/Infinity/g, '"Infinity"');
+            var dataFromBackend = $.parseJSON(response);
+            var trace = dataFromBackend.trace;
+            // Handle a BDB traceback
+            if (trace.length == 1 && trace[0].event == 'uncaught_exception') {
+              self.activeStep.set({step: self.steps.last(), line: self.steps.size()});
+              console.log("Error: " + trace[0].exception_msg);
+            // Otherwise, FF to the end and reset the trace
+            } else {
+              self.activeStep.set({step: self.steps.last(), line: self.steps.size()});
+              self.trace.reset(trace);
+            }
+          });
   },
 
   updateDataFromTrace: function() {
@@ -941,6 +955,8 @@ var StepsView = Backbone.View.extend({
               return;
             var attrName = attr[0];
             var attrValue = attr[1];
+            if (attrValue == "Infinity")
+              attrValue = Infinity;
             // some primitive
             if (isPrimitiveType(attrValue))
               values[attrName] = attrValue;
