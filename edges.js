@@ -3,7 +3,7 @@ var EdgeSketch = DatumSketch.extend({
 
   initialize: function(options) {
     var self = this;
-    _.bindAll(this, 'remove', 'render', 'renderEdge', 'renderHandle', 'renderLine', 'renderHead', 'renderWeight', 'fill', 'selectIfIntersects', 'deselect', 'startDrag', 'previewInteraction', 'hideInteractions', 'showAttachment', 'hideAttachment', 'cancelDwell', 'adjustEdge');
+    _.bindAll(this, 'remove', 'render', 'renderEdge', 'renderHandle', 'renderLine', 'renderHead', 'renderWeight', 'fill', 'selectIfIntersects', 'deselect', 'startDrag', 'previewInteraction', 'hideInteractions', 'showAttachment', 'hideAttachment', 'cancelDwell', 'adjustEdge', 'wasAttachedToNode');
     this.timeouts = [];
     this.intervals = [];
 
@@ -140,7 +140,7 @@ var EdgeSketch = DatumSketch.extend({
   // Render the edge
   renderEdge: function() {
     if (this.dragType == null)
-      console.log('update neighbors');
+      this.updateNeighbors();
 
     this.setPositions();
 
@@ -458,5 +458,24 @@ var EdgeSketch = DatumSketch.extend({
     this.previewValue = null;
     this.render();
   },
+
+  wasAttachedToNode: function(node) {
+    var nodeModel = node.model;
+    var startModel = this.model.get('start');
+    var endModel = this.model.get('end');
+    return (
+      (startModel != null &&
+      startModel.get('name') == nodeModel.get('name')) ||
+      (endModel != null &&
+      endModel.get('name') == nodeModel.get('name'))
+    );
+  },
+
+  updateNeighbors: function() {
+    var startModel = this.model.get('start');
+    var endModel = this.model.get('end');
+    this.start = this.canvas.getSketchByDatum(startModel);
+    this.end = this.canvas.getSketchByDatum(endModel);
+  }
 });
 

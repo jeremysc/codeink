@@ -402,7 +402,7 @@ var NodeSketch = DatumSketch.extend({
   },
 
   // Returns true if there's interaction with this object
-  previewInteraction: function(dragSketch, dragBounds) {
+  previewInteraction: function(dragSketch, dragBounds, cursorPosition) {
     var self = this;
 
     var bounds = getGroupRect(this.group);
@@ -434,26 +434,37 @@ var NodeSketch = DatumSketch.extend({
     if (dragSketch.model.get('type') == 'edge' &&
         dragSketch.type != 'weight') {
       var edge = dragSketch;
-      var edgePosition = (edge.dragType == 'start') ? 
-                          edge.group.getPosition() :
-                          edge.getGlobal(edge.endPosition);
+      
+      // Instead of using the edge endpoint we care about: start or end
+      // just use the mouse position
       var edgeBounds = {
-        left: edgePosition.x,
-        right: edgePosition.x,
-        top: edgePosition.y,
-        bottom: edgePosition.y
+        left: cursorPosition.x,
+        right: cursorPosition.x,
+        top: cursorPosition.y,
+        bottom: cursorPosition.y
       };
+      // If intersecting this node, preview the attachment
       if (intersectRect(edgeBounds, bounds)) {
         edge[edge.dragType] = this;
-        var step = new Assignment({
-          variable: new AttrExpr(
-            {object: edge.model,
-             attr: edge.dragType}),
-          value: this.model
-        });
-        self.dragData.set({step: step});
+        // Ignore re-attachments
+        if (! edge.wasAttachedToNode(this)) {
+          var step = new EdgeAttach({
+            edge: edge.model,
+            side: edge.dragType,
+            node: this.model
+          });
+          self.dragData.set({step: step});
+        }
         edge.render();
         return true;
+      // If not intersecting, disconnect the edge if it was previously connected
+      } else {
+        var edgeNeighbor = edge[edge.dragType];
+        if (edgeNeighbor != null &&
+            edgeNeighbor.model.get('name') == this.model.get('name')) {
+          edge[edge.dragType] = null;
+          edge.render();
+        }
       }
       return false;
     // Check if intersecting

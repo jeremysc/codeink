@@ -539,16 +539,28 @@ var BinaryNodeDetach = Step.extend({
 
 var EdgeAttach = Step.extend({
   defaults: {
-    action: 'binaryNodeDetach',
+    action: 'edgeAttach',
     indent: 0,
     parts: {
-      'python': ['parent', '.', 'side', ' = None'],
-      'english': ['detach ', 'child', ' from ', 'parent']
+      'python': ['edge', '.', 'side', ' = ', 'node'],
+      'english': ['attach ', 'node', ' to ', 'edge', ' ' , 'side']
     },
-    parent: null,
-    side: "left",
-    child: null,
+    edge: null,
+    side: "start",
+    node: null,
   }
 });
 
+var EdgeDetach = Step.extend({
+  defaults: {
+    action: 'nodeDetach',
+    indent: 0,
+    parts: {
+      'python': ['edge', '.', 'side', ' = None'],
+      'english': ['detach ', 'edge', ' ', 'side']
+    },
+    edge: null,
+    side: "start",
+  }
+});
 

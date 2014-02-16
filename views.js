@@ -314,6 +314,7 @@ var CanvasView = Backbone.View.extend({
 
   // Get the sketch for a particular datum
   getSketchByDatum: function(datum) {
+    if (datum == null) return null;
     for (var i = 0; i < this.sketches.length; i++) {
       var sketch = this.sketches[i];
       if (sketch.model.get('name') == datum.get('name'))
@@ -476,7 +477,7 @@ var CanvasView = Backbone.View.extend({
     for (var i = 0; i < this.sketches.length; i++) {
       var otherSketch = this.sketches[i];
       var otherModel = otherSketch.model;
-      if (!interacting && otherSketch.previewInteraction(sketch, bounds)) {
+      if (!interacting && otherSketch.previewInteraction(sketch, bounds, position)) {
         interacting = true;
       } else {
         otherSketch.hideInteractions();
@@ -513,8 +514,6 @@ var CanvasView = Backbone.View.extend({
       return;
     } else if (type == 'list') {
       sketch.poppedIndex = null;
-    } else if (type == 'edge') {
-      sketch.dragType = null;
     }
 
     // Trigger the previewed step, if it exists
@@ -544,6 +543,19 @@ var CanvasView = Backbone.View.extend({
           }));
           break;
         case "edge":
+          var edge = sketch;
+          // Trigger any detachments that resulted from the drag
+          if (edge.dragType != 'weight') {
+            var resultNode = edge[edge.dragType];
+            var originalNodeModel = edge.model.get(edge.dragType);
+            if (resultNode == null && originalNodeModel != null) {
+              var step = new EdgeDetach({
+                edge: edge.model,
+                side: edge.dragType
+              });
+              this.steps.trigger('step', {step: step});
+            }
+          }
           break;
         default:
           sketch.model.set({position: position});
@@ -552,8 +564,11 @@ var CanvasView = Backbone.View.extend({
     }
 
     // Destroy the dragged Kinetic shapes
-    if (type != 'edge')
+    if (type != 'edge') {
       kinetic.destroy();
+    } else {
+      sketch.dragType = null;
+    }
     // Reset the dragData object
     this.dragData.set(this.dragData.defaults());
     // Hide interactions
@@ -894,6 +909,8 @@ var StepsView = Backbone.View.extend({
     this.data.each(function(datum) {
       if (datum.get('type') == 'binary')
         datum.set({parent: null, left: null, right: null}, {silent: true});
+      if (datum.get('type') == 'edge')
+        datum.set({start: null, end: null}, {silent: true});
     });
 
     // update the data values (should trigger re-rendering)
@@ -963,11 +980,30 @@ var StepsView = Backbone.View.extend({
           });
           //console.log("setting data for " + datum.get("name"));
           datum.set(values, {silent: true});
+        } else if (isArray(value) && datum.get('type') == 'edge') {
+          var refNumber = value[1];
+          var attrs = heap[refNumber];
+          var values = {};
+          attrs.map(function(attr) {
+            if (! isArray(attr))
+              return;
+            var attrName = attr[0];
+            var attrValue = attr[1];
+            if (isArray(attrValue)) {
+              // attrName should be start or end
+              attrValue = heapMap[attrValue[1]];
+              values[attrName] = attrValue;
+            } else if (isPrimitiveType(attrValue)) {
+              values[attrName] = attrValue;
+            }
+          });
+          //console.log("setting data for " + datum.get("name"));
+          datum.set(values, {silent: true});
         }
       }
     }
     this.data.each(function(datum) {
-      if (datum.get('type') == 'binary' || datum.get('type') == 'node')
+      if (datum.get('type') == 'binary' || datum.get('type') == 'node' || datum.get('type') == 'edge')
         datum.trigger('change');
     });
     // update fill colors
