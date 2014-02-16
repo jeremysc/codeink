@@ -70,7 +70,7 @@ var PaletteView = Backbone.View.extend({
           //self.setMode('draw');
           return;
         case 70: //f
-          //self.setMode('fill');
+          self.setMode('fill');
           return;
       }
     });
@@ -708,22 +708,22 @@ var CanvasView = Backbone.View.extend({
         sketch.render();
         break;
       case "num":
-        var sketch = new NumberSketch({model: datum, layer: self.layer, globals: self.globals, dragData: self.dragData});
+        var sketch = new NumberSketch({model: datum, layer: self.layer, globals: self.globals, dragData: self.dragData, state: self.state});
         self.sketches.push(sketch);
         sketch.render();
         break;
       case "binary":
-        var sketch = new BinaryNodeSketch({model: datum, layer: self.layer, globals: self.globals, dragData: self.dragData, canvas: self});
+        var sketch = new BinaryNodeSketch({model: datum, layer: self.layer, globals: self.globals, dragData: self.dragData, canvas: self, state: self.state});
         self.sketches.push(sketch);
         sketch.render();
         break;
       case "node":
-        var sketch = new NodeSketch({model: datum, layer: self.layer, globals: self.globals, dragData: self.dragData, canvas: self});
+        var sketch = new NodeSketch({model: datum, layer: self.layer, globals: self.globals, dragData: self.dragData, canvas: self, state: self.state});
         self.sketches.push(sketch);
         sketch.render();
         break;
       case "edge":
-        var sketch = new EdgeSketch({model: datum, layer: self.layer, globals: self.globals, dragData: self.dragData, canvas: self});
+        var sketch = new EdgeSketch({model: datum, layer: self.layer, globals: self.globals, dragData: self.dragData, canvas: self, state: self.state});
         self.sketches.push(sketch);
         sketch.render();
         break;

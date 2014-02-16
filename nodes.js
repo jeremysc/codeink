@@ -168,6 +168,11 @@ var NodeSketch = DatumSketch.extend({
     });
     this.node.on("click", function() {
       self.cancelDwell();
+      if (self.state.filling()) {
+        self.node.setFill(self.state.color);
+        self.node.moveToBottom();
+        self.layer.draw();
+      }
     });
     this.node.on("dblclick", function() {
       self.cancelDwell();

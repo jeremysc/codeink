@@ -29,14 +29,22 @@
 
 <div id="codeinkapp">
   <nav class="navbar navbar-default" role="navigation">
-    <ul id="data" class="nav navbar-nav">
+    <ul class="nav navbar-nav">
       <li class="active"><a class="navbar-brand" href="#">codeink</a></li>
+    </li>
+    <ul id="data" class="nav navbar-nav">
       <li id="data-header"><a class="navbar-brand">data</a></li>
       <li><button id="num" class="btn navbar-btn btn-primary add-data" type="button" draggable="true">number</button></li>
       <li><button id="list" class="btn navbar-btn btn-primary add-data" type="button" draggable="true">list</button></li>
       <li><button id="binary" class="btn navbar-btn btn-primary add-data" type="button" draggable="true">binary node</button></li>
       <li><button id="node" class="btn navbar-btn btn-primary add-data" type="button" draggable="true">node</button></li>
       <li><button id="edge" class="btn navbar-btn btn-primary add-data" type="button" draggable="true">edge</button></li>
+    </ul>
+    <ul id="tools" class="nav navbar-nav">
+      <li id="tools-header"><a class="navbar-brand">tools</a></li>
+      <li><button id="select" type="button" class="btn navbar-btn btn-primary">select</button></li>
+      <li><button id="fill" type="button" class="btn navbar-btn btn-default">fill</button></li>
+      <li id="color-picker" class="navbar-btn input-group color" data-color="#79c2f7"><span class="input-group-addon"><i></i></span></li>
     </ul>
   </nav>
 
@@ -55,18 +63,6 @@
 
 <script type="text/template" id="palette-template">
   <div>
-      <!--
-    <h3>tools</h3>
-    <div id="tools" class="btn-group">
-      <button id="select" type="button" class="btn btn-md btn-primary">select</button>
-      <button id="draw" type="button" class="btn btn-md btn-default">pen</button>
-      <button id="fill" type="button" class="btn btn-md btn-default">fill</button>
-    </div>
-      -->
-    <div id="color-picker" class="input-group color" data-color="#79c2f7">
-      <input type="text" class="form-control" value="#79c2f7">
-      <span class="input-group-addon"><i></i></span>
-    </div>
   </div>    
 </script>
 
