@@ -262,6 +262,7 @@ var EdgeSketch = DatumSketch.extend({
     var self = this;
     var dragging = this.dragType == 'end';
     var position = this.endPosition;
+    var angleDeg = Math.atan2(position.y, position.x) * (180 / Math.PI) + 90;
     this.head = new Kinetic.RegularPolygon({
       x: position.x,
       y: position.y,
@@ -271,7 +272,7 @@ var EdgeSketch = DatumSketch.extend({
       stroke: dragging ? 'red' : 'black',
       strokeWidth: 3,
       lineJoin: 'round',
-      rotationDeg: -30,
+      rotationDeg: angleDeg,
     });
     this.head.on("mouseenter", function() {
       if (self.dragData.get('dragging'))
@@ -301,9 +302,22 @@ var EdgeSketch = DatumSketch.extend({
     var self = this;
     var start = {x: 0, y: 0};
     var end = this.endPosition;
+
+    var perpNormal = {x: end.y, y: -end.x};
+    var mag = Math.sqrt(perpNormal.x*perpNormal.x + perpNormal.y*perpNormal.y);
+    perpNormal.x = perpNormal.x / mag;
+    perpNormal.y = perpNormal.y / mag;
+    var mid = midpoint(start, end);
+    var labelPosition = {
+      x: mid.x + perpNormal.x * node_dim*0.75,
+      y: mid.y + perpNormal.y * node_dim*0.75
+    };
+
+    // Position the label at a distance
+    // along the normal away from the midpoint
     this.weight = new Kinetic.Label({
-      x: midpoint(start, end).x - node_dim/2,
-      y: -40,
+      x: labelPosition.x,
+      y: labelPosition.y,
       opacity: 0.75
     });
     this.weight.add(new Kinetic.Tag());
@@ -311,9 +325,6 @@ var EdgeSketch = DatumSketch.extend({
       text: this.model.getValue(),
       fontFamily: 'Helvetica',
       fontSize: 35,
-      width: node_dim,
-      height: node_dim,
-      align: 'center',
       fill: 'black'
     }));
     this.weight.on("mousedown", function(event) {
