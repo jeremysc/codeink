@@ -161,11 +161,10 @@ var EdgeSketch = DatumSketch.extend({
 
     this.setPositions();
 
-    this.renderHandle();
     this.renderLine();
+    this.renderHandle();
     this.renderHead();
     this.renderWeight();
-    this.handle.moveToTop();
   },
 
   setPositions: function() {
@@ -267,7 +266,7 @@ var EdgeSketch = DatumSketch.extend({
       x: position.x,
       y: position.y,
       sides: 3,
-      radius: 8,
+      radius: 10,
       fill: dragging ? 'red' : 'black',
       stroke: dragging ? 'red' : 'black',
       strokeWidth: 3,
@@ -277,13 +276,13 @@ var EdgeSketch = DatumSketch.extend({
     this.head.on("mouseenter", function() {
       if (self.dragData.get('dragging'))
         return;
-      this.setRadius(10);
       this.setFill('red');
       this.setStroke('red');
       self.layer.draw();
     });
     this.head.on("mouseleave", function() {
-      this.setRadius(5);
+      if (self.dragData.get('dragging'))
+        return;
       this.setFill('black');
       this.setStroke('black');
       self.layer.draw();
@@ -338,7 +337,6 @@ var EdgeSketch = DatumSketch.extend({
   },
   
   startDrag: function(event) {
-    console.log('starting drag ' + this.dragType);
     var kinetic, expr, value;
     var groupPosition = this.group.getPosition();
     // get grab offset
