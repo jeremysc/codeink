@@ -579,6 +579,10 @@ var ListSketch = DatumSketch.extend({
     var exited = this.dragData.get('exited');
 
     var bounds = getGroupRect(this.group);
+    
+    if (dragSketch.model.get('type') == 'node' &&
+        dragSketch.dragType != 'value')
+      return false;
 
     // First: cancel dwell timeout if exiting quickly
     if (dragSketch.model.get('name') == this.model.get('name')) {

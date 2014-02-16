@@ -459,18 +459,25 @@ var CanvasView = Backbone.View.extend({
       return;
     }
 
+    // Move the dragged object
+    if (type == 'edge' && sketch.dragType != 'weight') {
+      sketch.adjustEdge(position);
+    } else {
+      kinetic.setPosition(position);
+    }
+
     // Get the bounding box for the dragged object 
-    kinetic.setPosition(position);
     var bounds = getGroupRect(kinetic);
 
     // Preview interactions with other objects, if any
     var interacting = false;
+    // TODO: if engaged, wait to disengage
+    // before engaging with a different object
     for (var i = 0; i < this.sketches.length; i++) {
       var otherSketch = this.sketches[i];
       var otherModel = otherSketch.model;
-      if (otherSketch.previewInteraction(sketch, bounds)) {
+      if (!interacting && otherSketch.previewInteraction(sketch, bounds)) {
         interacting = true;
-        break;
       } else {
         otherSketch.hideInteractions();
       }
@@ -481,39 +488,6 @@ var CanvasView = Backbone.View.extend({
       this.dragData.set({step: null});
     }
     this.layer.draw();
-    return;
-    /*
-    // TYPE: NODE
-    } else if (sketch.model && sketch.model.get('type') == 'edge') {
-      // look for intersections
-      var moveEdge = true;
-      var side = self.dragData.get('side');
-      for (var i = 0; i < self.sketches.length; i++) {
-        var s = self.sketches[i];
-        var otherModel = s.model;
-        if (otherModel.get('type') != 'node')
-          continue;
-
-        if (s.pointIntersectsNode(position)) {
-          moveEdge = false;
-          if (sketch.showAttachment(s, side)) {
-            var step = new EdgeAttachment({
-              parent: s.model,
-              side: side,
-              child: sketch.model
-            });
-            self.dragData.set({step: step});
-          }
-        }
-      }
-      if (moveEdge) {
-        sketch.render();
-        sketch.hideAttachment();
-      }
-    } else if (sketch.model && sketch.model.get('type') == 'num') {
-      sketch.moveTo(position);
-    }
-    */
   },
 
   handleRelease: function(event) {
@@ -537,10 +511,10 @@ var CanvasView = Backbone.View.extend({
       this.dragData.set(this.dragData.defaults());
       this.layer.draw();
       return;
-    }
-
-    if (type == 'list') {
+    } else if (type == 'list') {
       sketch.poppedIndex = null;
+    } else if (type == 'edge') {
+      sketch.dragType = null;
     }
 
     // Trigger the previewed step, if it exists
@@ -569,7 +543,8 @@ var CanvasView = Backbone.View.extend({
             expr: dragExpr
           }));
           break;
-
+        case "edge":
+          break;
         default:
           sketch.model.set({position: position});
           break;
@@ -577,60 +552,13 @@ var CanvasView = Backbone.View.extend({
     }
 
     // Destroy the dragged Kinetic shapes
-    kinetic.destroy();
+    if (type != 'edge')
+      kinetic.destroy();
     // Reset the dragData object
     this.dragData.set(this.dragData.defaults());
     // Hide interactions
     for (var i = 0; i < this.sketches.length; i++)
       this.sketches[i].hideInteractions();
-    this.layer.draw();
-    return;
-
-    if (sketch.model && sketch.model.get('type') == "binary") {
-      sketch.hideInsertion(true);
-      if (this.dragData.get('step') != null)
-        this.steps.trigger('step', {step:this.dragData.get('step')});
-      else
-        sketch.model.set({position: position});
-    } else if (sketch.model && sketch.model.get('type') == "edge") {
-      if (this.dragData.get('side') == 'start')
-        sketch.model.set({position: position});
-    } else if (sketch.model && sketch.model.get('type') == "num") {
-      if (this.dragData.get('step') != null)
-        this.steps.trigger('step', {step:this.dragData.get('step')});
-      else
-        sketch.model.set({position: position});
-    } else {
-      sketch.destroy();
-      if (this.dragData.get('step') != null) {
-        this.steps.trigger('step', {step:this.dragData.get('step')});
-      } else {
-        var dragExpr = this.dragData.get('expr');
-        var dragValues = this.dragData.get('value');
-        if (isArray(dragValues)) {
-          this.data.add(new List({
-            name: name,
-            position: position,
-            values: dragValues,
-            expr: dragExpr
-          }));
-        } else {
-          var name;
-          for (var i = 1; i <= 40; i++) {
-            name = 'num'+i;
-            var datum = this.data.findWhere({name: name});
-            if (datum == null)
-              break;
-          }
-          this.data.add(new Number({
-            name: name,
-            position: position,
-            value: dragValues
-          }));
-        }
-      }
-    }
-    this.dragData.set(this.dragData.defaults());
     this.layer.draw();
   },
 

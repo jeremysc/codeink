@@ -160,6 +160,9 @@ var NodeSketch = DatumSketch.extend({
       align: 'center',
       fill: 'black'
     });
+    this.node.on("click", function() {
+      self.cancelDwell();
+    });
     this.node.on("dblclick", function() {
       self.cancelDwell();
       var value = prompt('Enter new value');
@@ -415,8 +418,35 @@ var NodeSketch = DatumSketch.extend({
       return false;
     }
 
+
+    // Handle interactions with edges
+    if (dragSketch.model.get('type') == 'edge' &&
+        dragSketch.type != 'weight') {
+      var edge = dragSketch;
+      var edgePosition = (edge.dragType == 'start') ? 
+                          edge.group.getPosition() :
+                          edge.getGlobal(edge.endPosition);
+      var edgeBounds = {
+        left: edgePosition.x,
+        right: edgePosition.x,
+        top: edgePosition.y,
+        bottom: edgePosition.y
+      };
+      if (intersectRect(edgeBounds, bounds)) {
+        edge[edge.dragType] = this;
+        var step = new Assignment({
+          variable: new AttrExpr(
+            {object: edge.model,
+             attr: edge.dragType}),
+          value: this.model
+        });
+        self.dragData.set({step: step});
+        edge.render();
+        return true;
+      }
+      return false;
     // Check if intersecting
-    if (intersectRect(dragBounds, bounds)) {
+    } else if (intersectRect(dragBounds, bounds)) {
       // If self, hide kinetic and make it a no-op
       if (isSelf) {
         kinetic.hide();
@@ -507,6 +537,14 @@ var NodeSketch = DatumSketch.extend({
     this.previewAction = null;
     this.previewValue = null;
     this.render();
+  },
+
+  getGlobalCenter: function() {
+    var groupPos = this.group.getPosition();
+    return {
+      x: groupPos.x + node_dim/2,
+      y: groupPos.y + node_dim/2
+    };
   },
 });
 

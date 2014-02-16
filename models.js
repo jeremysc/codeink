@@ -168,7 +168,7 @@ var Edge = Datum.extend({
       visible: true,
       name: "edgeA",
       type: "edge",
-      weight: 0,
+      weight: null,
       start: null,
       end: null
     };
