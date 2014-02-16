@@ -87,7 +87,7 @@ function getRectCorners(r) {
   return {left: l, right: r, top: t, bottom: b};
 }
 function getGroupRect(group) {
-  var avoidNames = ["plus", "label"];
+  var avoidNames = ["plus", "label", "circle"];
   var groupPosition = group.getPosition();
   var rects = [];
   var children = group.getChildren();

@@ -5,6 +5,7 @@ var node_dim = 1.25*box_dim;
 var stageHeight = 550;
 var labelFontSize = 15;
 var dragTimeout = 150;
+var backgroundColor = '#E8E8E8';
 
 var PaletteView = Backbone.View.extend({
   el: "#palette",
@@ -34,10 +35,10 @@ var PaletteView = Backbone.View.extend({
           self.setMode('select');
           return;
         case 68: //d
-          self.setMode('draw');
+          //self.setMode('draw');
           return;
         case 70: //f
-          self.setMode('fill');
+          //self.setMode('fill');
           return;
       }
     });
@@ -192,7 +193,7 @@ var CanvasView = Backbone.View.extend({
         y: 0,
         width: this.stageWidth,
         height: this.stageHeight,
-        fill: '#E8E8E8'
+        fill: backgroundColor
     });
     var backLayer = new Kinetic.Layer();
     backLayer.add(background);
@@ -1003,11 +1004,26 @@ var StepsView = Backbone.View.extend({
           });
           //console.log("setting data for " + datum.get("name"));
           datum.set(values, {silent: true});
+        } else if (isArray(value) && datum.get('type') == 'node') {
+          var refNumber = value[1];
+          var attrs = heap[refNumber];
+          var values = {};
+          attrs.map(function(attr) {
+            if (! isArray(attr))
+              return;
+            var attrName = attr[0];
+            var attrValue = attr[1];
+            // some primitive
+            if (isPrimitiveType(attrValue))
+              values[attrName] = attrValue;
+          });
+          //console.log("setting data for " + datum.get("name"));
+          datum.set(values, {silent: true});
         }
       }
     }
     this.data.each(function(datum) {
-      if (datum.get('type') == 'binary')
+      if (datum.get('type') == 'binary' || datum.get('type') == 'node')
         datum.trigger('change');
     });
     // update fill colors
@@ -1028,6 +1044,8 @@ var StepsView = Backbone.View.extend({
           var against =  step.get('against');
           if (against.has('list'))
             against = against.get('list');
+          else if (against.has('object'))
+            against = against.get('object');
           against.trigger('hideComparison', step);
       }
     });
@@ -1037,6 +1055,8 @@ var StepsView = Backbone.View.extend({
       var against =  step.get('against');
       if (against.has('list')) {
         against = against.get('list');
+      } else if (against.has('object')) {
+        against = against.get('object');
       } else if (against.get('type') == 'binary') {
         step = step.get('dragSketch');
       }

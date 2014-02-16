@@ -153,50 +153,13 @@ var Node = Datum.extend({
       visible: true,
       name: "nodeA",
       type: "node",
-      value: 0,
-      inbound: [],
-      edges: []
+      value: null
     };
   },
 
   getValue: function() {
     return this.get('value');
   },
-
-  edgeFrom: function(edge) {
-    var edgeName = edge.getSymbol();
-    var edges = this.get('edges');
-    var already = false;
-    for (var i = 0; i < edges.length; i++) {
-      var other = edges[i];
-      if (edgeName == other.getSymbol())
-        already = true;
-    }
-    if (! already) {
-      edges.push(edge);
-      this.set({edges: edges}); 
-      return true;
-    }
-    return false;
-  },
-
-  edgeTo: function(edge) {
-    var edgeName = edge.getSymbol();
-    var edges = this.get('inbound');
-    var already = false;
-    for (var i = 0; i < edges.length; i++) {
-      var other = edges[i];
-      if (edgeName == other.getSymbol())
-        already = true;
-    }
-    if (! already) {
-      edges.push(edge);
-      this.set({inbound: edges}); 
-      return true;
-    }
-    return false;
-  }
-
 });
 
 var Edge = Datum.extend({
@@ -229,7 +192,6 @@ var ClassDefinitionsModel = Backbone.Model.extend({
       "class Node:",
       "  def __init__(self, value):",
       "    self.value = value",
-      "    self.edges = []",
       "",
       "class Edge:",
       "  def __init__(self, weight):",

@@ -1,0 +1,97 @@
+Saturday:
+- Graphs
+  - Nodes: drop onto edge?
+  - Edges: drop onto node, set weight, drag end
+    - When people draw graphs, do they alternate node/edge?
+  x Drag nodes out, drop as number
+  - Drag edge weights out, drop as number
+  - Marking nodes
+- Fill anything
+
+- Figures:
+  - Storyboard algorithm examples
+  - Take screenshots
+  - Decide how to illustrate movement
+  - Captions
+
+Sunday:
+AM:
+- List fixes
+  - Intelligent expanding
+  - Detaching sublists
+  - Empty list: affordance for dragging things in
+  - Not dwelling and dragging laterally
+  
+- Undo bugs
+- Hide steps
+  - Nodes on side and scrubber
+  - Active step
+
+- Binary feedback on insert - arrow
+
+- Cursor leaving canvas
+
+PM
+- Philip:
+  - Abstract
+  - Design Space
+  - Figures
+
+Evening:
+- Record tutorials again
+- User studies:
+  - Tutorial video: better audio
+    - accessing values vs making copies
+    - emphasizing playback, clickability of steps
+
+  - Eliciting questions about the language, not just the tool
+    3 levels: Tool, language, whole idea
+
+- Binary port
+  x Double click: change value
+  x Drag (no parent): move subtree
+  - Drag (parent): make a copy of just the node, with value
+  - Dwell and drag: detach and move subtree
+  - Node disappearing when following or comparing
+  - Layout
+
+========
+GRAPH ALGORITHMS:
+- Dijkstra
+  - Build graph with node costs inf, edge weights X
+  - Dist source 0
+  - For each neighbor in source:
+    - Calculate cost:
+      - Drag source node cost out (new number)
+      - Drag edge weight in (compare, dwell, add)
+    - Compare cost with neighbor's cost
+      - Update if necessary
+    - Mark source as visited
+
+  - Repeat for node, unvisited with smallest cost
+
+- DFS
+  - Drag a cursor around
+  - Mark nodes as visited as you go
+
+- BFS
+  - Drag a cursor around
+  - Mark a frontier with a certain color
+  - Mark visited as you go
+
+=========
+WRITING NOTES:
+What vs. how
+Bridging the semantic gap via program synthesis 
+Learning control flow structure from examples
+
+Juho pointer
+Bret Victor
+
+New things:
+- List expanding
+- Comparison and follow vocabulary
+- Dwell feedback
+- Delete falloff on the edges / in a corner
+- Undo
+
