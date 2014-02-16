@@ -59,6 +59,12 @@ function midpoint( point1, point2 )
     y: (point1.y + point2.y)/2
   };
 }
+function insideRect(point, r1) {
+  return !(point.x > r1.right || 
+           point.x < r1.left || 
+           point.top > r1.bottom ||
+           point.bottom < r1.top);
+}
 function intersectRect(r1, r2) {
   return !(r2.left > r1.right || 
            r2.right < r1.left || 

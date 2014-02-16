@@ -20,24 +20,41 @@ var EdgeSketch = DatumSketch.extend({
     this.end = null; 
     this.previewSide = null;
 
-    this.endPosition = {x: 60, y: 0};
+    this.endPosition = {x: 80, y: 0};
 
     // Prompt user to initialize the node value
     if (this.model.getValue() == null) {
       var value = prompt('Enter new value');
       if (value != null) {
         this.model.set({weight: value});
+        var edgeExpr = (this.model.get('start') != null) ?
+            new EdgeWithStartExpr({
+              weight: this.model.getValue(),
+              start: this.model.get('start')
+            }) :
+            new EdgeExpr({
+              weight: this.model.getValue()
+            });
+              
         var step = new Assignment({
           variable: this.model,
-          value: new EdgeExpr({weight: this.model.getValue()}),
+          value: edgeExpr,
           isInitialization: true
         });
         this.model.trigger('step', {step: step});
       }
     } else {
+      var edgeExpr = (this.model.get('start') != null) ?
+          new EdgeWithStartExpr({
+            weight: this.model.getValue(),
+            start: this.model.get('start')
+          }) :
+          new EdgeExpr({
+            weight: this.model.getValue()
+          });
       var step = new Assignment({
         variable: this.model,
-        value: new EdgeExpr({weight: this.model.getValue()}),
+        value: edgeExpr,
         isInitialization: true
       });
       this.model.trigger('step', {step: step});
@@ -284,13 +301,13 @@ var EdgeSketch = DatumSketch.extend({
     var self = this;
     var start = {x: 0, y: 0};
     var end = this.endPosition;
-    this.text = new Kinetic.Label({
+    this.weight = new Kinetic.Label({
       x: midpoint(start, end).x - node_dim/2,
       y: -40,
       opacity: 0.75
     });
-    this.text.add(new Kinetic.Tag());
-    this.text.add(new Kinetic.Text({
+    this.weight.add(new Kinetic.Tag());
+    this.weight.add(new Kinetic.Text({
       text: this.model.getValue(),
       fontFamily: 'Helvetica',
       fontSize: 35,
@@ -299,17 +316,18 @@ var EdgeSketch = DatumSketch.extend({
       align: 'center',
       fill: 'black'
     }));
-    this.text.on("mousedown", function(event) {
+    this.weight.on("mousedown", function(event) {
       // Timer to start the drag
       self.addTimeout(function(event) {
         self.dragType = 'weight';
         self.startDrag(event);
       }, 150, event);
     });
-    this.group.add(this.text);
+    this.group.add(this.weight);
   },
   
   startDrag: function(event) {
+    console.log('starting drag ' + this.dragType);
     var kinetic, expr, value;
     var groupPosition = this.group.getPosition();
     // get grab offset
@@ -326,7 +344,7 @@ var EdgeSketch = DatumSketch.extend({
     if (this.dragType == 'weight') {
       kinetic = new Kinetic.Group();
       kinetic.setPosition(groupPosition);
-      this.text.moveTo(kinetic);
+      this.weight.moveTo(kinetic);
       this.layer.add(kinetic);
     } else {
       kinetic = this.group;
@@ -376,9 +394,7 @@ var EdgeSketch = DatumSketch.extend({
   // Returns true if there's interaction with this object
   previewInteraction: function(dragSketch, dragBounds) {
     var self = this;
-    return false;
 
-    var bounds = getRect(this.weight);
     var kinetic = this.dragData.get('kinetic');
     var exited = this.dragData.get('exited');
     var isSelf = (dragSketch.model.get('name') == this.model.get('name'));
@@ -403,8 +419,12 @@ var EdgeSketch = DatumSketch.extend({
     if (isArray(value) && value.length > 1) {
       return false;
     }
-
-    // Check if intersecting
+    
+    // Ignore attachments from dragging nodes for now
+    // Handle numbers being dragged into the weight
+    
+    // Check if intersecting with the weight
+    var bounds = getRectCorners(this.weight);
     if (intersectRect(dragBounds, bounds)) {
       // If self, hide kinetic and make it a no-op
       if (isSelf) {
@@ -413,36 +433,8 @@ var EdgeSketch = DatumSketch.extend({
         self.dragData.set({step: null});
         return true;
       }
-      // If not previewing, start the comparison
-      if (this.previewAction == null) {
-        this.previewValue = this.dragData.get('value');
-        this.previewAction = 'compare';
-        kinetic.hide();
-        // ? this.layer.draw();
-
-        // Commit the comparison
-        var step = new Compare({
-          drag: this.dragData.get('expr'),
-          against: new AttrExpr({object: this.model}),
-          dragSketch: dragSketch,
-          againstSketch: this,
-          value: this.dragData.get('value')
-        });
-        this.model.trigger('step', {step: step});
-
-        // Start a timeout to switch to assignment
-        this.addTimeout(function() {
-          self.previewAction = 'assign';
-          var step = new Assignment({
-            variable: new AttrExpr({object: self.model}),
-            value: self.dragData.get('expr')
-          });
-          self.dragData.set({step: step});
-          self.render();
-        }, 2000);
-      }
-      this.render();
-      return true;
+      // TODO: For now, no interactions by dragging into the weights
+      return false;
     // Not intersecting, clear timeouts if any
     } else {
       this.cancelDwell();

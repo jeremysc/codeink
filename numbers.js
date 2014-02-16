@@ -304,8 +304,8 @@ var NumberSketch = DatumSketch.extend({
     var kinetic = this.dragData.get('kinetic');
     var exited = this.dragData.get('exited');
 
-    if (dragSketch.model.get('type') == 'node' &&
-        dragSketch.dragType != 'value')
+    if (dragSketch.model.get('type') == 'edge' &&
+        dragSketch.dragType != 'weight')
       return false;
 
     // First: wait for the number to exit itself

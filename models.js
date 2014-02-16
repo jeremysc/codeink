@@ -194,9 +194,9 @@ var ClassDefinitionsModel = Backbone.Model.extend({
       "    self.value = value",
       "",
       "class Edge:",
-      "  def __init__(self, weight):",
+      "  def __init__(self, weight, start=None):",
       "    self.weight = weight",
-      "    self.start = None",
+      "    self.start = start",
       "    self.end = None"
       ]
     ];
@@ -315,6 +315,18 @@ var EdgeExpr = Expr.extend({
       weight: "0",
       parts: {
         'python': ['Edge(','weight',')'],
+        'english': ['new edge with weight ','weight']
+      }
+    };
+  },
+});
+var EdgeWithStartExpr = Expr.extend({
+  defaults: function() {
+    return {
+      weight: "0",
+      start: null,
+      parts: {
+        'python': ['Edge(','weight',',', 'start', ')'],
         'english': ['new edge with weight ','weight']
       }
     };

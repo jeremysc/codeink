@@ -7,6 +7,38 @@ var labelFontSize = 15;
 var dragTimeout = 150;
 var backgroundColor = '#E8E8E8';
 
+function debugRect(bounds, layer) {
+  var rect = new Kinetic.Rect({
+    x: bounds.left,
+    y: bounds.top,
+    width: bounds.right - bounds.left,
+    height: bounds.bottom - bounds.top,
+    fill: 'purple',
+    opacity: 0.4
+  });
+  rect.on("click", function() {
+    this.remove();
+  });
+  layer.add(rect);
+  layer.draw();
+}
+
+function debugDot(position, layer) {
+  var dot = new Kinetic.Circle({
+    x: position.x,
+    y: position.y,
+    radius: 8,
+    fill: 'white',
+    opacity: 0.4
+  });
+  dot.on("click", function() {
+    this.remove();
+  });
+  layer.add(dot);
+  dot.moveToTop();
+  layer.draw();
+}
+
 var PaletteView = Backbone.View.extend({
   el: "#palette",
 
@@ -542,6 +574,14 @@ var CanvasView = Backbone.View.extend({
             expr: dragExpr
           }));
           break;
+        case "node":
+          name = this.getNewDatumName('num');
+          this.data.add(new Number({
+            name: name,
+            position: position,
+            value: new AttrExpr({object: sketch.model, attr: 'value'})
+          }));
+          break;
         case "edge":
           var edge = sketch;
           // Trigger any detachments that resulted from the drag
@@ -555,6 +595,14 @@ var CanvasView = Backbone.View.extend({
               });
               this.steps.trigger('step', {step: step});
             }
+          } else {
+            name = this.getNewDatumName('num');
+            this.data.add(new Number({
+              name: name,
+              position: position,
+              value: new AttrExpr({object: edge.model, attr: 'weight'})
+            }));
+            kinetic.destroy();
           }
           break;
         default:
@@ -618,14 +666,35 @@ var CanvasView = Backbone.View.extend({
         }));
         break;
       case "edge":
+        var nearbyNode = this.findNearbyDatum(position, 'node');
+        var start = (nearbyNode != null) ? nearbyNode.model : null;
         this.data.add(new Edge({
           name: name,
-          position: position
+          position: position,
+          start: start
         }));
         break;
       default:
         break;
     }
+  },
+
+  findNearbyDatum: function(position, type) {
+    for (var i = 0; i < this.sketches.length; i++) {
+      var sketch = this.sketches[i];
+      var model = sketch.model;
+      if (model.get('type') != type)
+        continue;
+
+      var bounds = getGroupRect(sketch.group);
+      //debugRect(bounds, this.layer);
+      if (insideRect(position, bounds)) {
+        //debugDot(position, this.layer);
+        //console.log('inside ' + model.get('name'));
+        return sketch;
+      }
+    }
+    return null;
   },
 
   // Render a newly added datum on the stage

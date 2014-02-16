@@ -432,7 +432,7 @@ var NodeSketch = DatumSketch.extend({
 
     // Handle interactions with edges
     if (dragSketch.model.get('type') == 'edge' &&
-        dragSketch.type != 'weight') {
+        dragSketch.dragType != 'weight') {
       var edge = dragSketch;
       
       // Instead of using the edge endpoint we care about: start or end
