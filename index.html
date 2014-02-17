@@ -124,8 +124,8 @@ $(function() {
       var data = new Data;
       var trace = new Trace;
       new PaletteView({state: state});
-      new CanvasView({data: data, steps: steps, activeStep: activeStep, trace: trace, state: state});
-      new StepsView({data: data, steps: steps, activeStep: activeStep, trace: trace});
+      var canvasView = new CanvasView({data: data, steps: steps, activeStep: activeStep, trace: trace, state: state});
+      new StepsView({data: data, steps: steps, activeStep: activeStep, trace: trace, canvas: canvasView});
     }
   });
 

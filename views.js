@@ -743,6 +743,7 @@ var StepsView = Backbone.View.extend({
     this.steps = options.steps;
     this.activeStep = options.activeStep;
     this.trace = options.trace;
+    this.canvas = options.canvas;
     this.language = 'python';
 
     this.indent = 0;
@@ -795,14 +796,24 @@ var StepsView = Backbone.View.extend({
     };
 
     this.undo = function() {
+      if (self.steps.isEmpty())
+        return;
+      self.stepBack();
       var step = self.steps.remove(self.steps.last());
+      self.render();
       // remove the datum if it it was an initialization
       if (step.get('action') == 'assignment' && step.get('isInitialization')) {
         var datum = step.get('variable');
+        for (var i = 0; i < self.canvas.sketches.length; i++) {
+          var sketch = self.canvas.sketches[i];
+          if (sketch.model.get('name') == datum.get('name')) {
+            self.canvas.sketches.splice(i, 1);
+            break;
+          }
+        }
         self.data.remove(datum);
         datum.destroy();
       }
-      self.stepBack();
     };
     
     // buttons

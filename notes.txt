@@ -1,43 +1,8 @@
-Saturday:
-- Graphs
-  - Nodes: drop onto edge?
-  - Edges: drop onto node, set weight, drag end
-    - When people draw graphs, do they alternate node/edge?
-  x Drag nodes out, drop as number
-  - Drag edge weights out, drop as number
-  - Marking nodes
-- Fill anything
-
-- Figures:
-  - Storyboard algorithm examples
-  - Take screenshots
-  - Decide how to illustrate movement
-  - Captions
-
-Sunday:
-AM:
 - List fixes
-  - Intelligent expanding
   - Detaching sublists
-  - Empty list: affordance for dragging things in
   - Not dwelling and dragging laterally
   
-- Undo bugs
-- Hide steps
-  - Nodes on side and scrubber
-  - Active step
-
-- Binary feedback on insert - arrow
-
-- Cursor leaving canvas
-
-PM
-- Philip:
-  - Abstract
-  - Design Space
-  - Figures
-
-Evening:
+AM:
 - Record tutorials again
 - User studies:
   - Tutorial video: better audio
@@ -47,16 +12,16 @@ Evening:
   - Eliciting questions about the language, not just the tool
     3 levels: Tool, language, whole idea
 
+- Graphs: marking nodes
+- Fill anything
 - Binary port
-  x Double click: change value
-  x Drag (no parent): move subtree
-  - Drag (parent): make a copy of just the node, with value
-  - Dwell and drag: detach and move subtree
-  - Node disappearing when following or comparing
-  - Layout
 
 ========
 GRAPH ALGORITHMS:
+- Graphs
+  x Edges: drop onto node, set weight, drag end
+  x Drag nodes out, drop as number
+  x Drag edge weights out, drop as number
 - Dijkstra
   - Build graph with node costs inf, edge weights X
   - Dist source 0
@@ -94,4 +59,21 @@ New things:
 - Dwell feedback
 - Delete falloff on the edges / in a corner
 - Undo
+
+NICE TO HAVE:
+- Binary port
+  x Double click: change value
+  x Drag (no parent): move subtree
+  - Drag (parent): make a copy of just the node, with value
+  - Dwell and drag: detach and move subtree
+  - Node disappearing when following or comparing
+  - Layout
+
+- Hide steps
+  - Nodes on side and scrubber
+  - Active step
+
+- Cursor leaving canvas
+- Binary feedback on insert - arrow
+- Empty list: affordance for dragging things in
 
