@@ -2,7 +2,7 @@ var box_dim = 45;
 var box_shift = 3;
 var expanded_shift = box_dim;
 var node_dim = 1.25*box_dim;
-var stageHeight = 550;
+var stageHeight = 600;
 var labelFontSize = 15;
 var dragTimeout = 150;
 var backgroundColor = '#E8E8E8';
@@ -208,7 +208,7 @@ var CanvasView = Backbone.View.extend({
     this.sketches = [];
     this.activeStep = options.activeStep;
     this.state = options.state;
-    _.bindAll(this, 'render', 'getSketchByDatum', 'handleDataDrop', 'handleDrag', 'handleRelease');
+    _.bindAll(this, 'render', 'getSketchByDatum', 'handleDataDrop', 'handleDrag', 'handleRelease', 'handleCancel');
 
     // Setup the KineticJS stage
     this.stageWidth = $("#stage").width();
@@ -297,6 +297,18 @@ var CanvasView = Backbone.View.extend({
       }
     });
 
+    background.on("click", function(event) {
+      if (self.selecting) {
+        self.selectRect.destroy();
+        self.selecting = false;
+        self.sketches.map(function(s) {
+          s.deselect();
+          s.render();
+        });
+        self.layer.draw();
+      }
+    });
+
     stage.on("mousemove", function(event) {
       // Dragging an object
       if (self.dragData.get('dragging')) {
@@ -339,6 +351,23 @@ var CanvasView = Backbone.View.extend({
         else
           self.strokes.push(self.stroke);
         self.drawing = false;
+        self.layer.draw();
+      }
+    });
+    
+    $(this.container).on("mouseout", function(event) {
+      if (self.dragData.get('dragging')) {
+        self.handleCancel();
+        self.sketches.map(function(s) {
+          s.render();
+        });
+      } else if (self.selecting) {
+        self.selectRect.destroy();
+        self.selecting = false;
+        self.sketches.map(function(s) {
+          s.deselect();
+          s.render();
+        });
         self.layer.draw();
       }
     });
@@ -563,6 +592,8 @@ var CanvasView = Backbone.View.extend({
           // and there's no step, it's a no-op
           if (sketch.expanded)
             break;
+          if (! this.dragData.get('exited'))
+            break;
           var dragExpr = this.dragData.get('expr');
           var dragValues = this.dragData.get('value');
           // Create the new list
@@ -574,7 +605,18 @@ var CanvasView = Backbone.View.extend({
             expr: dragExpr
           }));
           break;
+        case "num":
+          if (! this.dragData.get('exited'))
+            break;
+          this.data.add(new Number({
+            name: name,
+            position: position,
+            value: this.dragData.get('value')
+          }));
+          break;
         case "node":
+          if (! this.dragData.get('exited'))
+            break;
           name = this.getNewDatumName('num');
           this.data.add(new Number({
             name: name,
@@ -596,6 +638,8 @@ var CanvasView = Backbone.View.extend({
               this.steps.trigger('step', {step: step});
             }
           } else {
+            if (! this.dragData.get('exited'))
+              break;
             name = this.getNewDatumName('num');
             this.data.add(new Number({
               name: name,
@@ -613,7 +657,42 @@ var CanvasView = Backbone.View.extend({
 
     // Destroy the dragged Kinetic shapes
     if (type != 'edge') {
+      if (!this.dragData.get('exited'))
+        sketch.render();
       kinetic.destroy();
+    } else {
+      sketch.dragType = null;
+    }
+    // Reset the dragData object
+    this.dragData.set(this.dragData.defaults());
+    // Hide interactions
+    for (var i = 0; i < this.sketches.length; i++)
+      this.sketches[i].hideInteractions();
+    this.layer.draw();
+  },
+  
+  handleCancel: function(event) {
+    // Get some drag data
+    var sketch = this.dragData.get('sketch');
+    var kinetic = this.dragData.get('kinetic');
+    var model = sketch.model;
+    var type = model.get('type');
+    
+    if (type == 'binary') {
+      sketch.hideInsertion(true);
+      this.dragData.set(this.dragData.defaults());
+      this.layer.draw();
+      return;
+    } else if (type == 'list') {
+      sketch.poppedIndex = null;
+    }
+
+    // Destroy the dragged Kinetic shapes
+    if (type != 'edge') {
+      kinetic.destroy();
+    } else if (sketch.dragType == 'weight') {
+      kinetic.destroy();
+      sketch.dragType = null;
     } else {
       sketch.dragType = null;
     }

@@ -1,6 +1,7 @@
 - List fixes
   - Detaching sublists
   - Not dwelling and dragging laterally
+- Engaged thing
   
 AM:
 - Record tutorials again
@@ -73,7 +74,6 @@ NICE TO HAVE:
   - Nodes on side and scrubber
   - Active step
 
-- Cursor leaving canvas
 - Binary feedback on insert - arrow
 - Empty list: affordance for dragging things in
 

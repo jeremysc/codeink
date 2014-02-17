@@ -34,3 +34,6 @@ code.active {
 ul.navbar-nav li {
   margin-right: 10px;
 }
+nav.navbar {
+  margin-bottom: 5px;
+}

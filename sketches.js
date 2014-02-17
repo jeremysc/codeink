@@ -190,7 +190,7 @@ var BinaryNodeSketch = DatumSketch.extend({
 
   initialize: function(options) {
     var self = this;
-    _.bindAll(this, 'remove', 'render', 'selectIfIntersects', 'setFill', 'intersectsNode', 'showComparison', 'hideComparison', 'intersectsPointer', 'intersectsHead', 'showFollow', 'hideFollow', 'getChildSide', 'getInsertionPoint', 'showInsertion', 'hideInsertion', 'clearTimeouts', 'updateNeighbors');
+    _.bindAll(this, 'remove', 'render', 'selectIfIntersects', 'setFill', 'intersectsNode', 'showComparison', 'hideComparison', 'intersectsPointer', 'intersectsHead', 'showFollow', 'hideFollow', 'getChildSide', 'getInsertionPoint', 'showInsertion', 'hideInsertion', 'clearTimeouts', 'updateNeighbors', 'deselect', 'previewInteraction', 'hideInteractions');
     this.layer = options.layer;
     this.globals = options.globals;
     this.dragData = options.dragData;
@@ -243,6 +243,13 @@ var BinaryNodeSketch = DatumSketch.extend({
   },
   
   selectIfIntersects: function(rect) {
+  },
+
+  deselect: function() {
+  },
+  previewInteraction: function(dragSketch, dragValue) {
+  },
+  hideInteractions: function() {
   },
 
   // check if the dragged node intersects with this one
