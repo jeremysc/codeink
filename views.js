@@ -535,13 +535,28 @@ var CanvasView = Backbone.View.extend({
     var interacting = false;
     // TODO: if engaged, wait to disengage
     // before engaging with a different object
-    for (var i = 0; i < this.sketches.length; i++) {
-      var otherSketch = this.sketches[i];
-      var otherModel = otherSketch.model;
-      if (!interacting && otherSketch.previewInteraction(sketch, bounds, position)) {
+
+    // HACK: check self first, if dragging list element
+    if (type == 'list') {
+      if (sketch.previewInteraction(sketch, bounds, position)) {
         interacting = true;
+        this.sketches.map(function(s) {
+          if (s.model.get('name') != sketch.model.get('name'))
+            s.hideInteractions();
+        });
       } else {
-        otherSketch.hideInteractions();
+        sketch.hideInteractions();
+      }
+    }
+    if (!interacting) {
+      for (var i = 0; i < this.sketches.length; i++) {
+        var otherSketch = this.sketches[i];
+        var otherModel = otherSketch.model;
+        if (!interacting && otherSketch.previewInteraction(sketch, bounds, position)) {
+          interacting = true;
+        } else {
+          otherSketch.hideInteractions();
+        }
       }
     }
 

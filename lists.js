@@ -277,8 +277,8 @@ var ListSketch = DatumSketch.extend({
         self.model.trigger('step', {step: step});
       }
     });
-    if (! this.expanded)
-      this.group.add(this.plus);
+    //if (! this.expanded)
+    //  this.group.add(this.plus);
     
     this.layer.add(this.group);
     this.layer.draw();
@@ -457,44 +457,46 @@ var ListSketch = DatumSketch.extend({
         // Timer to start the drag
         self.addTimeout(self.startDrag, 150, event);
         // Interval to animate the dwell state
-        self.addInterval(function() {
-          if (!self.dwellCircle || self.dwellCircle == null) {
-            self.dwellCircle = new Kinetic.Wedge({
-              x: event.offsetX,
-              y: event.offsetY - 50,
-              radius: 10,
-              angle: 0,
-              fill: '#46b6ec',
-              stroke: null,
-            });
-            self.dwellAngle = 0;
-            self.layer.add(self.dwellCircle);
-            self.layer.draw();
-          } else if (self.dwellAngle >= 2*Math.PI) {
-            self.clearIntervals();
+        if (self.numSelected == 1) {
+          self.addInterval(function() {
+            if (!self.dwellCircle || self.dwellCircle == null) {
+              self.dwellCircle = new Kinetic.Wedge({
+                x: event.offsetX,
+                y: event.offsetY - 50,
+                radius: 10,
+                angle: 0,
+                fill: '#46b6ec',
+                stroke: null,
+              });
+              self.dwellAngle = 0;
+              self.layer.add(self.dwellCircle);
+              self.layer.draw();
+            } else if (self.dwellAngle >= 2*Math.PI) {
+              self.clearIntervals();
 
-            self.dwellCircle.remove();
-            self.dwellCircle = null;
-            self.layer.draw();
-          } else {
-            self.dwellAngle += 2*Math.PI / 20;
-            self.dwellCircle.setAngle(self.dwellAngle);
-            self.dwellCircle.moveToTop();
-            self.layer.draw();
-          }
-        }, 42);
-        // Timer to flag dwell state
-        self.addTimeout(function() {
-          // if exited, ignore the dwell
-          // shouldn't happen if exit clears the timeout
-          if (self.dragData.get('exited'))
-            return;
-          // modify the expression to be a pop
-          var expr = new Pop({list: self.model, index: index});
-          self.dragData.set({dwelled: true, expr: expr});
-          self.poppedIndex = index;
-          self.expand(event.offsetX);
-        }, 1000);
+              self.dwellCircle.remove();
+              self.dwellCircle = null;
+              self.layer.draw();
+            } else {
+              self.dwellAngle += 2*Math.PI / 20;
+              self.dwellCircle.setAngle(self.dwellAngle);
+              self.dwellCircle.moveToTop();
+              self.layer.draw();
+            }
+          }, 42);
+          // Timer to flag dwell state
+          self.addTimeout(function() {
+            // if exited, ignore the dwell
+            // shouldn't happen if exit clears the timeout
+            if (self.dragData.get('exited'))
+              return;
+            // modify the expression to be a pop
+            var expr = new Pop({list: self.model, index: index});
+            self.dragData.set({dwelled: true, expr: expr});
+            self.poppedIndex = index;
+            self.expand(event.offsetX);
+          }, 1000);
+        }
       });
     }
 
@@ -685,6 +687,8 @@ var ListSketch = DatumSketch.extend({
           this.render();
         }
         return true;
+      } else {
+        this.dragData.set({exited: true});
       }
     }
     return false;
