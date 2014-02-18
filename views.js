@@ -260,6 +260,7 @@ var CanvasView = Backbone.View.extend({
     this.selectStart = {x: 0, y: 0};
     this.selectRect;
     this.selecting = false;
+    this.selectingMoved = false;
     this.drawing = false;
     this.strokes = [];
 
@@ -271,6 +272,7 @@ var CanvasView = Backbone.View.extend({
         self.selectStart.x = event.offsetX;
         self.selectStart.y = event.offsetY;
         self.selecting = true;
+        self.selectingMoved = false;
         self.selectRect = new Kinetic.Rect({
           x: self.selectStart.x,
           y: self.selectStart.y,
@@ -297,24 +299,13 @@ var CanvasView = Backbone.View.extend({
       }
     });
 
-    background.on("click", function(event) {
-      if (self.selecting) {
-        self.selectRect.destroy();
-        self.selecting = false;
-        self.sketches.map(function(s) {
-          s.deselect();
-          s.render();
-        });
-        self.layer.draw();
-      }
-    });
-
     stage.on("mousemove", function(event) {
       // Dragging an object
       if (self.dragData.get('dragging')) {
         self.handleDrag(event);
       // Rectangular selection
       } else if (self.selecting) {
+        self.selectingMoved = true;
         var current = {
           x: event.offsetX,
           y: event.offsetY
@@ -344,6 +335,7 @@ var CanvasView = Backbone.View.extend({
       } else if (self.selecting) {
         self.selectRect.destroy();
         self.selecting = false;
+        self.selectingMoved = false;
         self.layer.draw();
       } else if (self.drawing) {
         if (self.stroke.getPoints().length < 0)
@@ -364,6 +356,7 @@ var CanvasView = Backbone.View.extend({
       } else if (self.selecting) {
         self.selectRect.destroy();
         self.selecting = false;
+        self.selectingMoved = false;
         self.sketches.map(function(s) {
           s.deselect();
           s.render();
@@ -371,6 +364,20 @@ var CanvasView = Backbone.View.extend({
         self.layer.draw();
       }
     });
+    
+    background.on("click", function(event) {
+      if (self.selecting && !self.selectingMoved) {
+        self.selectRect.destroy();
+        self.selecting = false;
+        self.selectingMoved = false;
+        self.sketches.map(function(s) {
+          s.deselect();
+          s.render();
+        });
+        self.layer.draw();
+      }
+    });
+
   },
 
   // Get the sketch for a particular datum
