@@ -575,7 +575,7 @@ var ListSketch = DatumSketch.extend({
 
   previewInteraction: function(dragSketch, dragBounds) {
     var firstExitThresh = box_dim*0.5;
-    var exitThresh = box_dim*0.75;
+    var exitThresh = box_dim*0.55;
     var enterThresh = box_dim*0.4;
     var dwelled = this.dragData.get('dwelled');
     var exited = this.dragData.get('exited');
