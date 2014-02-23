@@ -126,6 +126,29 @@ function getGroupRect(group) {
   return groupRect;
 }
 
+function getGlobalRect(group, node) {
+  var groupPosition = group.getPosition();
+  var position = child.getPosition();
+  var width = child.getWidth();
+  var height = child.getHeight();
+  return {
+    left: groupPosition.x + position.x,
+    right: groupPosition.x + position.x + width,
+    top: groupPosition.y + position.y,
+    bottom: groupPosition.y + position.y + height
+  };
+}
+
+function getGlobalPoint(group, point) {
+  var groupPosition = group.getPosition();
+  return {
+    left: groupPosition.x + point.x,
+    right: groupPosition.x + point.x,
+    top: groupPosition.y + point.y,
+    bottom: groupPosition.y + point.y
+  };
+}
+
 var DatumSketch = Backbone.View.extend({
   drawBoxAndLabel: function(x, y, boxw, boxh, value, index, muted) {
     var text_height = boxh-10;
@@ -275,7 +298,7 @@ var BinaryNodeSketch = DatumSketch.extend({
     return true;
   },
   
-  hideComparison: function(silent) {
+  hideComparison: function(step, silent) {
     if (!this.comparing)
       return false;
     this.comparing = false;

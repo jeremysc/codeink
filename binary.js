@@ -4,7 +4,6 @@ var BinaryNodeSketch = DatumSketch.extend({
   initialize: function(options) {
     var self = this;
     _.bindAll(this, 'remove', 'render', 'selectIfIntersects', 'setFill', 'intersectsNode', 'startDrag', 'showComparison', 'hideComparison', 'intersectsPointer', 'intersectsHead', 'showFollow', 'hideFollow', 'getChildSide', 'getInsertionPoint', 'showInsertion', 'hideInsertion', 'updateNeighbors');
-    //_.bindAll(this, 'render', 'fill', 'selectIfIntersects', 'deselect', 'startDrag', 'previewInteraction', 'hideInteractions', 'getInteraction');
     this.timeouts = [];
     this.intervals = [];
 
@@ -87,8 +86,8 @@ var BinaryNodeSketch = DatumSketch.extend({
     this.selected = false;
   },
   
-  // Re-render the binary node
-  render: function() {
+  // Re-render the sketch
+  render: function(event) {
     var self = this;
 
     // Clear the group from the stage
@@ -100,6 +99,252 @@ var BinaryNodeSketch = DatumSketch.extend({
       this.layer.draw();
       return;
     }
+
+    // Render the draggable label
+    this.renderLabel();
+
+    // Draw the node and pointers (hidden)
+    if (this.previewAction == 'compare')
+      this.renderComparison();
+    else
+      this.renderValue();
+
+    this.renderPointers();
+
+    this.layer.add(this.group);
+    this.layer.draw();
+  },
+  
+  renderLabel: function() {
+    var self = this;
+    var label = new Kinetic.Label({
+      x: 4,
+      y: -30,
+      opacity: 0.75
+    });
+    label.add(new Kinetic.Tag({
+      fill: 'yellow'
+    }));
+    label.add(new Kinetic.Text({
+      text: this.model.getSymbol(),
+      fontFamily: 'Helvetica',
+      fontSize: labelFontSize,
+      padding: 5,
+      fill: 'black'
+    }));
+    label.on("mouseover", function() {
+      self.group.setDraggable(true);
+      var tag = this.getTag();
+      tag.setStroke('black');
+      self.layer.draw();
+    });
+    label.on("mouseout", function() {
+      self.group.setDraggable(false);
+      var tag = this.getTag();
+      tag.setStroke('');
+      self.layer.draw();
+    });
+    this.group.add(label);
+  },
+
+  // Render just the node's value
+  renderValue: function() {
+    var self = this;
+    var previewAssign = (this.previewAction == 'assign');
+    var textValue = (value == Infinity) ? '∞' : value;
+
+    this.node = new Kinetic.Circle({
+      name: 'circle',
+      x: node_dim/2,
+      y: node_dim/2,
+      radius: node_dim/2,
+      stroke: (previewAssign) ? '#46b6ec' : 'black',
+      strokeWidth: 3
+    });
+    this.text = new Kinetic.Text({
+      text: textValue,
+      fontFamily: 'Helvetica',
+      fontSize: 35,
+      width: node_dim,
+      height: node_dim,
+      offsetY: -10,
+      align: 'center',
+      fill: 'black'
+    });
+    this.node.on("click", function() {
+      self.cancelDwell();
+      if (self.state.filling()) {
+        self.node.setFill(self.state.color);
+        self.node.moveToBottom();
+        self.layer.draw();
+      }
+    });
+    this.node.on("dblclick", function() {
+      self.cancelDwell();
+      var value = prompt('Enter new value');
+      if (value != null) {
+        self.model.set({value: value});
+        var step = new Assignment({
+          variable: new AttrExpr({object: self.model, attr: "value", value: value}),
+          value: value
+        });
+        self.model.trigger('step', {step: step});
+      }
+      return false;
+    });
+
+    // Highlight on hover, if not selected
+    this.node.on("mouseover", function() {
+      if (!self.selected) {
+        this.setStroke('red');
+        self.layer.draw();
+      }
+    });
+    this.node.on("mouseout", function() {
+      if (!self.selected) {
+        this.setStroke('black');
+        self.layer.draw();
+      }
+    });
+
+    this.node.on("mousedown", function(event) {
+      // Timer to start the drag
+      self.addTimeout(self.startDrag, 150, event);
+      // Interval to animate the dwell state
+      /*
+      self.addInterval(function() {
+        if (!self.dwellCircle || self.dwellCircle == null) {
+          self.dwellCircle = new Kinetic.Wedge({
+            x: event.offsetX,
+            y: event.offsetY - 50,
+            radius: 10,
+            angle: 0,
+            fill: '#46b6ec',
+            stroke: null,
+          });
+          self.dwellAngle = 0;
+          self.layer.add(self.dwellCircle);
+          self.layer.draw();
+        } else if (self.dwellAngle >= 2*Math.PI) {
+          self.clearIntervals();
+
+          self.dwellCircle.remove();
+          self.dwellCircle = null;
+          self.layer.draw();
+        } else {
+          self.dwellAngle += 2*Math.PI / 20;
+          self.dwellCircle.setAngle(self.dwellAngle);
+          self.dwellCircle.moveToTop();
+          self.layer.draw();
+        }
+      }, 42);
+      */
+      // Timer to flag dwell state
+      self.addTimeout(function() {
+        // if exited, ignore the dwell
+        // shouldn't happen if exit clears the timeout
+        if (self.dragData.get('exited'))
+          return;
+        // modify the expression
+        self.dragData.set({dwelled: true});//, expr: expr});
+        console.log('dwelled');
+      }, 1000);
+    });
+
+    this.group.add(this.text);
+    this.group.add(this.node);
+  },
+  
+  // Show the comparison
+  renderComparison: function() {
+    // The enclosing rect
+    // group starts out at x = -node_dim/2 from center
+    var rect = new Kinetic.Rect({
+      x: -node_dim*0.75,
+      width: node_dim*2.5,
+      height: node_dim,
+      strokeWidth: 1,
+      fill: backgroundColor
+    });
+
+    // The value of this node
+    var value = this.model.get('value');
+    var otherValue = this.previewValue;
+    var thisPosition, otherPosition, operator;
+    if (value < otherValue) {
+      thisPosition = {x: -node_dim/4, y: node_dim/2};
+      otherPosition = {x: node_dim*1.25, y: node_dim/2};
+      operator = "<";
+    } else {
+      otherPosition = {x: -node_dim/4, y: node_dim/2};
+      thisPosition = {x: node_dim*1.25, y: node_dim/2};
+      operator = "<";
+    }
+    if (value == otherValue)
+      operator = "=";
+    if (value == Infinity)
+      value = '∞';
+    if (otherValue == Infinity)
+      otherValue = '∞';
+
+    var node = new Kinetic.Circle({
+      x: thisPosition.x,
+      y: thisPosition.y,
+      radius: node_dim/2,
+      stroke: 'black',
+      strokeWidth: 3
+    });
+    var text = new Kinetic.Text({
+      x: thisPosition.x - node_dim/2,
+      text: value,
+      fontFamily: 'Helvetica',
+      fontSize: 35,
+      width: node_dim,
+      height: node_dim,
+      offsetY: -10,
+      align: 'center',
+      fill: 'black'
+    });
+
+    var nodeOther = new Kinetic.Circle({
+      x: otherPosition.x,
+      y: otherPosition.y,
+      radius: node_dim/2,
+      stroke: '#46b6ec',
+      strokeWidth: 3
+    });
+    var textOther = new Kinetic.Text({
+      x: otherPosition.x - node_dim/2,
+      text: otherValue,
+      fontFamily: 'Helvetica',
+      fontSize: 35,
+      width: node_dim,
+      height: node_dim,
+      offsetY: -10,
+      align: 'center',
+      fill: 'black'
+    });
+
+    var textOperator = new Kinetic.Text({
+      text: operator,
+      fontFamily: 'Helvetica',
+      fontSize: 35,
+      width: node_dim,
+      height: node_dim,
+      offsetY: -10,
+      align: 'center',
+      fill: 'black'
+    });
+    this.group.add(rect);
+    this.group.add(node);
+    this.group.add(text);
+    this.group.add(nodeOther);
+    this.group.add(textOther);
+    this.group.add(textOperator);
+  },
+  
+  // Re-render the binary node
+  render: function() {
     // (this.comparing && this.otherNode == null) ||
     // (this.following && this.dragNode == null)) 
 
@@ -114,124 +359,17 @@ var BinaryNodeSketch = DatumSketch.extend({
                   : this.model.get('position');
     }
     this.group.setPosition(position);
-    
-    // Render the label
-    this.renderLabel();
+  },
 
-    if (!this.comparing) {
-      // draw the node and pointers (hidden)
-      var value = this.model.get('value');
-      this.node = new Kinetic.Circle({
-        x: node_dim/2,
-        y: node_dim/2,
-        radius: node_dim/2,
-        stroke: (this.previewSide != null) ? '#46b6ec' : 'black',
-        strokeWidth: 3
-      });
-      this.text = new Kinetic.Text({
-        text: value,
-        fontFamily: 'Helvetica',
-        fontSize: 35,
-        width: node_dim,
-        height: node_dim,
-        offsetY: -10,
-        align: 'center',
-        fill: 'black'
-      });
-      this.node.on("dblclick", function() {
-        self.clearTimeouts();
-        var value = prompt('Enter new value');
-        if (value != null) {
-          self.model.set({value: value});
-          var step = new Assignment({
-            variable: new AttrExpr({object: self.model, attr: "value", value: value}),
-            value: value
-          });
-          self.model.trigger('step', {step: step});
-        }
-        return false;
-      });
-
-      this.group.add(this.text);
-      this.group.add(this.node);
-    } else if (this.comparing && this.otherNode != null) {
-      // group starts out at x = -node_dim/2 from center
-      var rect = new Kinetic.Rect({
-        x: -node_dim*0.75,
-        width: node_dim*2.5,
-        height: node_dim,
-        strokeWidth: 1,
-      });
-      var value = this.model.get('value');
-      var otherValue = this.otherNode.model.get('value');
-      var thisPosition, otherPosition, operator;
-      if (value < otherValue) {
-        thisPosition = {x: -node_dim/4, y: node_dim/2};
-        otherPosition = {x: node_dim*1.25, y: node_dim/2};
-        operator = "<";
-      } else {
-        otherPosition = {x: -node_dim/4, y: node_dim/2};
-        thisPosition = {x: node_dim*1.25, y: node_dim/2};
-        operator = "<";
-      }
-      if (value == otherValue)
-        operator = "=";
-      var node = new Kinetic.Circle({
-        x: thisPosition.x,
-        y: thisPosition.y,
-        radius: node_dim/2,
-        stroke: 'black',
-        strokeWidth: 3
-      });
-      var text = new Kinetic.Text({
-        x: thisPosition.x - node_dim/2,
-        text: value,
-        fontFamily: 'Helvetica',
-        fontSize: 35,
-        width: node_dim,
-        height: node_dim,
-        offsetY: -10,
-        align: 'center',
-        fill: 'black'
-      });
-
-      var nodeOther = new Kinetic.Circle({
-        x: otherPosition.x,
-        y: otherPosition.y,
-        radius: node_dim/2,
-        stroke: '#46b6ec',
-        strokeWidth: 3
-      });
-      var textOther = new Kinetic.Text({
-        x: otherPosition.x - node_dim/2,
-        text: otherValue,
-        fontFamily: 'Helvetica',
-        fontSize: 35,
-        width: node_dim,
-        height: node_dim,
-        offsetY: -10,
-        align: 'center',
-        fill: 'black'
-      });
-
-      var textOperator = new Kinetic.Text({
-        text: operator,
-        fontFamily: 'Helvetica',
-        fontSize: 35,
-        width: node_dim,
-        height: node_dim,
-        offsetY: -10,
-        align: 'center',
-        fill: 'black'
-      });
-      this.group.add(rect);
-      this.group.add(node);
-      this.group.add(text);
-      this.group.add(nodeOther);
-      this.group.add(textOther);
-      this.group.add(textOperator);
+  getPointerHead: function(side) {
+    if (side == 'left') {
+      return this.leftLine.getPoints()[1];
+    } else {
+      return this.rightLine.getPoints()[1];
     }
-      
+  },
+
+  renderPointers: function() {
     // draw the pointers
     var pointerRoot = {
       x: node_dim/2,
@@ -281,27 +419,123 @@ var BinaryNodeSketch = DatumSketch.extend({
     this.group.add(this.leftHead);
     this.group.add(this.rightLine);
     this.group.add(this.rightHead);
+  },
+  
+  startDrag: function(event) {
+    var kinetic, expr, value;
+    var groupPosition = this.group.getPosition();
+    // get grab offset
+    var offset = {x: event.offsetX - groupPosition.x,
+                  y: event.offsetY - groupPosition.y};
 
-    this.layer.add(this.group);
-    this.layer.draw();
+    // set the expression and value
+    expr = new AttrExpr({object: this.model}),
+    value = this.model.getValue();
+
+    // move selected elems to a new group
+    kinetic = new Kinetic.Group();
+    kinetic.setPosition(groupPosition);
+    this.node.moveTo(kinetic);
+    this.text.moveTo(kinetic);
+    this.layer.add(kinetic);
+
+    var bounds = getGroupRect(kinetic);
+    
+    this.dragData.set({
+      dragging: true,
+      sketch: this,
+      kinetic: kinetic,
+      originalBounds: bounds,
+      expr: expr,
+      value: value,
+      offset: offset,
+      step: null,
+      exited: false,
+      dwelled: false
+    });
+
+    this.deselect();
+  },
+  
+  // Returns true if there's interaction with this object
+  previewInteraction: function(dragSketch, dragBounds, cursorPosition) {
+    var self = this;
+
+    var nodeBounds = getGlobalRect(this.group, this.node);
+    var leftPoint = getPointerHead('left');
+    leftPoint = getGlobalPoint(this.group, leftPoint);
+    var rightPoint = getPointerHead('right');
+    rightPoint = getGlobalPoint(this.group, rightPoint);
+    var kinetic = this.dragData.get('kinetic');
+    var exited = this.dragData.get('exited');
+    var isSelf = (dragSketch.model.get('name') == this.model.get('name'));
+
+    // First: wait for the node to exit itself
+    if (isSelf) {
+      if (!exited) {
+        var originalBounds = this.dragData.get('originalBounds');
+        if (! intersectRect(dragBounds, originalBounds)) {
+          this.dragData.set({exited: true});
+          this.render();
+        } else {
+          return true;
+        }
+      }
+    }
+    
+    // No interactions for sublists
+    var value = this.dragData.get('value');
+    if (isArray(value) && value.length > 1) {
+      return false;
+    }
+
+    // Handle interactions with edges
+    if (dragSketch.model.get('type') == 'edge')
+      return false;
+
+    if (intersectRect(dragBounds, nodeBounds)) {
+      // If self, hide kinetic and make it a no-op
+      if (isSelf) {
+        kinetic.hide();
+        this.layer.draw();
+        self.dragData.set({step: null});
+        return true;
+      }
+      // If not previewing, start the comparison
+      if (this.previewAction == null) {
+        this.previewValue = this.dragData.get('value');
+        this.previewAction = 'compare';
+        kinetic.hide();
+        // ? this.layer.draw();
+
+        // Commit the comparison
+        var step = new Compare({
+          drag: this.dragData.get('expr'),
+          against: new AttrExpr({object: this.model}),
+          dragSketch: dragSketch,
+          againstSketch: this,
+          value: this.dragData.get('value')
+        });
+        this.model.trigger('step', {step: step});
+      }
+      this.render();
+      return true;
+    // Not intersecting, clear timeouts if any
+    } else if (intersectRect(dragBounds, leftPoint) {
+
+    }
+    } else {
+      this.cancelDwell();
+      return false;
+    }
   },
 
-  renderLabel: function() {
-    var label = new Kinetic.Label({
-      y: -30,
-      opacity: 0.75
-    });
-    label.add(new Kinetic.Tag({
-      fill: 'yellow'
-    }));
-    label.add(new Kinetic.Text({
-      text: this.model.getSymbol(),
-      fontFamily: 'Helvetica',
-      fontSize: 15,
-      padding: 5,
-      fill: 'black'
-    }));
-    this.group.add(label);
+  hideInteractions: function() {
+    if (this.previewAction == null)
+      return;
+    this.previewAction = null;
+    this.previewValue = null;
+    this.render();
   },
 
   // check if the dragged node intersects with this one

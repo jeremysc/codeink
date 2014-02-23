@@ -1,12 +1,5 @@
-- List fixes
-  - Detaching sublists
-  - Not dwelling and dragging laterally
-- Engaged thing
-  
-AM:
-- Record tutorials again
 - User studies:
-  - Tutorial video: better audio
+  - Tutorial video:
     - accessing values vs making copies
     - emphasizing playback, clickability of steps
 
@@ -76,4 +69,9 @@ NICE TO HAVE:
 
 - Binary feedback on insert - arrow
 - Empty list: affordance for dragging things in
+- List fixes
+  - Detaching sublists
+  - Not dwelling and dragging laterally
+- Engaged thing
+  
 
