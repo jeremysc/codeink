@@ -1011,7 +1011,7 @@ var StepsView = Backbone.View.extend({
                    show_only_outputs: false};
     
     var user_script = ClassDefinitions.toCode();
-    user_script += this.steps.map(function(step) {return step.toCode();}).join("\n");
+    user_script += this.steps.map(function(step) {return step.toCode(false);}).join("\n");
     /*
     var scriptLines = user_script.split('\n');
     for (var i = 0; i < scriptLines.length; i++)
@@ -1247,7 +1247,7 @@ var StepsView = Backbone.View.extend({
       var el = view.render(self.language).el;
       this.$("#steps-body").append(el);
       if (line == activeLine)
-        $(el).find("code").addClass('active');
+        $(el).addClass('active');
       $(el).find("a").click(function() {
         self.activeStep.set({step: step, line: line});
         self.updateDataFromTrace();
@@ -1258,6 +1258,7 @@ var StepsView = Backbone.View.extend({
 
 var StepListView = Backbone.View.extend({
   tagName:  "li",
+  className: "code",
 
   initialize: function() {
     _.bindAll(this, 'render');

@@ -238,7 +238,7 @@ var Expr = Backbone.Model.extend({
   dragReset: function(partName) {
     this.set(partName, this.oldValue);
   },
-  toCode: function(lang) {
+  toCode: function(html, lang) {
     if (lang == undefined)
       lang = 'python';
     var code = "";
@@ -254,7 +254,7 @@ var Expr = Backbone.Model.extend({
         } else if (isDatum(part)) {
           code += part.getSymbol();
         } else {
-          code += part.toCode(lang);
+          code += part.toCode(html, lang);
         }
       // literal part
       } else {
@@ -282,7 +282,7 @@ var ListVarExpr = Expr.extend({
       index: "0",
       parts: {
         'python': ['list','[','index',']'],
-        'english': ['list','[','index',']']
+        'english': ['pos ', 'index', ' from ' , 'list']
       }
     };
   },
@@ -293,7 +293,7 @@ var BinaryNodeExpr = Expr.extend({
       value: "0",
       parts: {
         'python': ['BinaryNode(','value',')'],
-        'english': ['new binary node with value ','value']
+        'english': ['new binary node, value: ','value']
       }
     };
   },
@@ -304,7 +304,7 @@ var NodeExpr = Expr.extend({
       value: "0",
       parts: {
         'python': ['Node(','value',')'],
-        'english': ['new node with value ','value']
+        'english': ['new node, value: ','value']
       }
     };
   },
@@ -315,7 +315,7 @@ var EdgeExpr = Expr.extend({
       weight: "0",
       parts: {
         'python': ['Edge(','weight',')'],
-        'english': ['new edge with weight ','weight']
+        'english': ['new edge, weight: ','weight']
       }
     };
   },
@@ -327,7 +327,7 @@ var EdgeWithStartExpr = Expr.extend({
       start: null,
       parts: {
         'python': ['Edge(','weight',',', 'start', ')'],
-        'english': ['new edge with weight ','weight']
+        'english': ['new edge, weight: ','weight']
       }
     };
   },
@@ -340,7 +340,7 @@ var AttrExpr = Expr.extend({
       attr: "value",
       parts: {
         'python': ['object','.','attr'],
-        'english': ['object','.','attr']
+        'english': ['object',' ','attr']
       }
     };
   },
@@ -372,7 +372,7 @@ var Step = Expr.extend({
       else
         code += "  ";
     }
-    return code + Expr.prototype.toCode.call(this, lang);
+    return code + Expr.prototype.toCode.call(this, toHTML, lang);
   },
   animate: function(callback) {
     var animation = this.get('animation');
@@ -427,7 +427,7 @@ var Pop = Step.extend({
     indent: 0,
     parts: {
       'python': ['list', '.pop(', 'index', ')'],
-      'english': ['pop out ', 'index', ' from ', 'list'],
+      'english': ['pos ', 'index', ' from ' , 'list']
     },
     list: null,
     index: null
@@ -440,7 +440,7 @@ var Insert = Step.extend({
     indent: 0,
     parts: {
       'python': ['list', '.insert(', 'index', ',', 'value', ')'],
-      'english': ['insert ', 'value', ' into ', 'list', ' at position ', 'index']
+      'english': ['insert ', 'value', ' at position ', 'index']
     },
     list: null,
     index: null,
@@ -467,7 +467,7 @@ var Rearrange = Step.extend({
     indent: 0,
     parts: {
       'python': ['list', '.insert(', 'toIndex', ',', 'list', '.pop(', 'fromIndex', '))'],
-      'english': ['move ', 'list', ' position ', 'fromIndex', ' to ', 'toIndex']
+      'english': ['move ', 'list', ' pos ', 'fromIndex', ' to ', 'toIndex']
     },
     list: null,
     fromIndex: null,
@@ -495,8 +495,8 @@ var Compare = Step.extend({
     action: 'compare',
     indent: 0,
     parts: {
-      'python': ['# compare ', 'drag', ' with ', 'against'],
-      'english': ['# compare ', 'drag', ' with ', 'against'],
+      'python': ['# compare ', 'drag', '<br>#   with ', 'against'],
+      'english': ['# compare ', 'drag', '<br>#   with ', 'against'],
     },
     drag: null,
     against: null,
